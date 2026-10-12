@@ -39,4 +39,6 @@ uv run pytest
 
 ## GitHub 同步
 
-本文件所在目录是独立仓库根目录，Git 命令在这里执行。仓库包含自己的计划和 progress.md，无需下载另一个项目。创建空的 GitHub 仓库后配置 origin，首次推送使用 `git push -u origin HEAD`。
+本文件所在目录是独立仓库根目录，Git 命令在这里执行。仓库包含自己的计划和 progress.md，无需下载另一个项目。
+
+远端：[MeterGate](https://github.com/zmq2783764729-crypto/MeterGate)。本机工作分支 codex/initial 跟踪远端 main，已配置直接 git push 使用该上游。换电脑时 clone 本仓库，按当前分支执行 `git pull --ff-only`；开发结束时更新 progress.md，并提交、推送。
