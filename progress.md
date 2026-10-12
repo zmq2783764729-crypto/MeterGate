@@ -17,6 +17,7 @@
 - 2026-10-12 从原共享工作目录拆分；原父仓库的暂存区与配置备份在父目录 .local/repository-backups，不是本项目依赖。
 - origin：https://github.com/zmq2783764729-crypto/MeterGate.git。提交身份使用用户选择的 GitHub 用户名与隐私邮箱；同步状态按 git status 与远端检查核实。
 - GitHub 已推送：本机 codex/initial 跟踪 origin/main，远端已有 main 历史已合并保留；本机 push.default=upstream，因此日常直接 git push 即可。其他电脑 clone 后按实际默认分支使用。
+- 当前电脑 Git 网络配置：本仓库本地 http.proxy 使用系统已启用的 `http://127.0.0.1:7897`；只保存在本机 .git/config，不随 clone 传播。代理端口变更时按本机实际配置调整。
 - Python 3.12；按 README 用 uv sync --locked 重建环境。本机辅助 uv 在父目录 .local/bootstrap/bin，不随仓库同步。
 - Docker 的 Virtual Machine Platform/WSL 环境仍待安装后验证；这不影响此前骨架验收。
 
