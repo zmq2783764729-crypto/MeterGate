@@ -1,0 +1,30 @@
+# Local credentials; keep only shareable examples.
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+
+# Rebuildable Python environments and caches.
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Local runtime data. Commit synthetic fixtures under tests/fixtures instead.
+storage/
+.local/
+backups/
+*.log
+*.sqlite
+*.sqlite3
+
+# OS-specific noise.
+.DS_Store
+Thumbs.db
