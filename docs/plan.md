@@ -405,6 +405,7 @@ async def consume_usage(
     # 5. 失败则回滚整笔事务；成功由调用方提交。
     ...
 
+
 def calculate_invoice(snapshot: PricingSnapshot, quantity: int) -> InvoiceDraft:
     # base_fee_cents + quantity * unit_price_cents
     # 只处理整数，不访问数据库，不调用外部服务。

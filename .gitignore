@@ -28,3 +28,7 @@ backups/
 # OS-specific noise.
 .DS_Store
 Thumbs.db
+
+# PyCharm
+.idea/
+*.iml

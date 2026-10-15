@@ -1,3 +1,4 @@
+# 用途：验证应用配置互不串用、健康响应与配置显示不泄露测试密钥，以及生命周期正常结束。
 import asyncio
 
 from httpx import ASGITransport, AsyncClient

@@ -1,7 +1,8 @@
+# 用途：读取 MG_ 环境变量和本项目 .env，校验配置并隐藏数据库地址与密钥的显示值。
 from pathlib import Path
 from typing import Literal
 
-from pydantic import SecretStr
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -22,3 +23,4 @@ class Settings(BaseSettings):
     database_url: SecretStr | None = None
     redis_url: SecretStr | None = None
     jwt_secret: SecretStr | None = None
+    health_timeout_seconds: float = Field(default=3.0, gt=0, le=30)
