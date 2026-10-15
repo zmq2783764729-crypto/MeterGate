@@ -1,4 +1,4 @@
-# 用途：创建 FastAPI 应用、注册路由和中文错误响应，并管理 PostgreSQL 与 Redis 连接资源。
+# 用途：创建 FastAPI 应用，配置安全日志、请求编号和中文错误处理，并管理数据库与 Redis 资源。
 from collections.abc import AsyncIterator
 from contextlib import AsyncExitStack, asynccontextmanager
 
@@ -10,13 +10,16 @@ from starlette.exceptions import HTTPException
 from app import __version__
 from app.api.router import router
 from app.core.config import Settings
-from app.core.errors import http_error, internal_error, validation_error
+from app.core.errors import DomainError, domain_error, http_error, internal_error, validation_error
+from app.core.logging import configure_logging
 from app.db.session import create_db_engine, create_session_factory
+from app.middleware.request_context import RequestContextMiddleware
 
 
 @asynccontextmanager
 async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     settings = application.state.settings
+    configure_logging(settings.log_level)
     try:
         # 每创建一份资源就登记清理，即使后续初始化失败也会释放此前资源。
         async with AsyncExitStack() as cleanup:
@@ -57,6 +60,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.state.db_engine = None
     application.state.session_factory = None
     application.state.redis = None
+    application.add_middleware(RequestContextMiddleware)
+    application.add_exception_handler(DomainError, domain_error)
     application.add_exception_handler(HTTPException, http_error)
     application.add_exception_handler(RequestValidationError, validation_error)
     application.add_exception_handler(Exception, internal_error)
