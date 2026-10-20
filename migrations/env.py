@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.core.config import Settings
 from app.db.base import Base
+from app.modules.auth import models as auth_models  # noqa: F401
 
 config = context.config
 if config.config_file_name is not None:
@@ -18,7 +19,7 @@ settings = Settings()
 if settings.database_url is None:
     raise RuntimeError("请先在项目 .env 中配置 MG_DATABASE_URL")
 
-# 后续添加业务模型时，在这里导入对应模型模块，保证其表注册到 Base.metadata。
+# 导入模型模块时，其表会注册到共享 Base.metadata，供 Alembic 比较结构。
 target_metadata = Base.metadata
 
 

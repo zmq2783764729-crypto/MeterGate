@@ -2,7 +2,7 @@
 
 企业与成员、API Key、套餐订阅、用量额度、账单、模拟支付和审计。
 
-当前完成第 01—03 天。已实现应用与连接骨架、健康检查、迁移基线、请求编号、统一错误与安全 JSON 日志，验收通过。下一步实现用户注册与密码登录；业务表与业务模块尚未实现。
+当前完成第 01—04 天；用户表、注册、登录、Argon2密码哈希和短期JWT已实现，用户于2026-10-20确认9项Postman测试全部通过。下一步是第05天企业与成员关系。[第04天代码讲解](docs/day04-practice.md)包含阅读顺序；[第04天测试集](docs/day04-test-cases.md)保留逐行请求、预期结果与用户验收记录。
 
 ## 启动
 
@@ -14,7 +14,7 @@ Copy-Item .env.example .env
 uv run uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-若已经有 `.env`，保留原配置，不重复覆盖。不填数据库和 Redis 地址时仍可运行应用，live=200、ready=503；要使 ready=200，按 [第 02 天练习](docs/day02-practice.md) 启动数据服务并填写连接地址。JWT 暂时无需填写。
+若已经有 `.env`，保留原配置，不重复覆盖。不填数据库和 Redis 地址时仍可运行应用，live=200、ready=503；要使 ready=200，按 [第 02 天练习](docs/day02-practice.md) 启动数据服务并填写连接地址。登录需要在本机 .env 配置至少32字节的随机 MG_JWT_SECRET，默认15分钟有效；修改配置后重启应用。本机已补齐密钥并执行0002_users迁移，换电脑后需自行配置并升级迁移。
 
 本机的 uv 位于父目录辅助工具中，尚未加入 PATH。当前电脑可在本项目目录执行：
 
@@ -34,6 +34,7 @@ uv run uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 - 健康接口：`http://127.0.0.1:8000/health/live`
 - 就绪接口：`http://127.0.0.1:8000/health/ready`
 - OpenAPI 文档：`http://127.0.0.1:8000/docs`
+- 注册：`POST /v1/auth/register`；登录：`POST /v1/auth/login`；当前用户：`GET /v1/auth/me`。
 - live 反映应用存活；ready 实际检查 PostgreSQL 与 Redis，任一项未配置或不可用返回 503。
 
 用户可见的健康状态和错误提示统一使用中文，字段名与 HTTP 状态码保持原样。例如 ready 正常时返回 `{"status":"已就绪","checks":{"database":"正常","redis":"正常"}}`，live 的 `status` 为 `正常`。依赖故障返回 `未就绪`，检查项为 `不可用` 或 `未配置`；按英文状态值判断的旧脚本需同步调整。
@@ -50,7 +51,7 @@ uv run pytest
 
 ## 结构与配置
 
-`app/core` 管理配置和中文错误响应；`app/api` 汇总路由；`app/db` 提供模型基类、异步连接池与会话；`dependencies`、`middleware`、`modules`、`integrations`、`workers` 和 `observability` 是后续实现入口。`migrations` 包含异步迁移环境与 0001_baseline，`scripts` 暂存目录占位。`deploy/compose.dev.yml` 提供本机 PostgreSQL 与 Redis 启动配置，操作见 [第 02 天动手练习](docs/day02-practice.md)。
+`app/core` 管理配置、错误、日志与密码/JWT安全工具；`app/api` 汇总路由；`app/db` 提供模型基类、异步连接池与会话；`modules/auth` 实现注册登录分层，`dependencies/auth.py` 提供当前用户，`middleware` 管理请求追踪。其他业务模块按计划预留。`migrations` 包含异步迁移环境、0001_baseline 和 0002_users；`deploy/compose.dev.yml` 提供本机 PostgreSQL 与 Redis，操作见 [第 02 天练习](docs/day02-practice.md)。
 
 配置变量使用 `MG_` 前缀，从本项目 `.env` 或环境读取。数据库 URL 和 JWT 密钥采用 SecretStr，禁止向日志输出原始值。`.env` 不提交 Git。
 

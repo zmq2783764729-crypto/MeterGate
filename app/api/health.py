@@ -2,13 +2,11 @@
 import asyncio
 from typing import Literal
 
-from fastapi import APIRouter, Request, Response
+from fastapi import Request, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 
 from app import __version__
-
-router = APIRouter(prefix="/health", tags=["健康检查"])
 
 
 class LiveResponse(BaseModel):
@@ -23,19 +21,6 @@ CheckStatus = Literal["正常", "不可用", "未配置"]
 class ReadyResponse(BaseModel):
     status: Literal["已就绪", "未就绪"] = Field(title="就绪状态")
     checks: dict[str, CheckStatus] = Field(title="依赖检查结果")
-
-
-@router.get(
-    "/live",
-    response_model=LiveResponse,
-    summary="检查服务是否存活",
-    description="返回服务运行状态、名称与版本，不检查数据库和 Redis。",
-    responses={200: {"description": "服务正常响应"}},
-)
-async def live(request: Request) -> LiveResponse:
-    return LiveResponse(
-        status="正常", service=request.app.state.settings.app_name, version=__version__
-    )
 
 
 async def check_database(request: Request) -> CheckStatus:
@@ -63,16 +48,12 @@ async def check_redis(request: Request) -> CheckStatus:
         return "不可用"
 
 
-@router.get(
-    "/ready",
-    response_model=ReadyResponse,
-    summary="检查服务是否就绪",
-    description="检查 PostgreSQL 与 Redis，任一项未配置或不可用时返回 503。",
-    responses={
-        200: {"description": "所有依赖正常，服务已就绪"},
-        503: {"description": "依赖未配置或不可用，服务未就绪", "model": ReadyResponse},
-    },
-)
+async def live(request: Request) -> LiveResponse:
+    return LiveResponse(
+        status="正常", service=request.app.state.settings.app_name, version=__version__
+    )
+
+
 async def ready(request: Request, response: Response) -> ReadyResponse:
     database_status, redis_status = await asyncio.gather(
         check_database(request), check_redis(request)

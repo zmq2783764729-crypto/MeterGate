@@ -23,4 +23,7 @@ class Settings(BaseSettings):
     database_url: SecretStr | None = None
     redis_url: SecretStr | None = None
     jwt_secret: SecretStr | None = None
+    jwt_issuer: str = Field(default="metergate", min_length=1)
+    jwt_audience: str = Field(default="metergate-api", min_length=1)
+    access_token_minutes: int = Field(default=15, ge=1, le=60)
     health_timeout_seconds: float = Field(default=3.0, gt=0, le=30)
