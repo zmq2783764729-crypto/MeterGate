@@ -2,8 +2,9 @@
 from collections.abc import AsyncIterator
 from contextlib import AsyncExitStack, asynccontextmanager
 from typing import Annotated
+from uuid import UUID
 
-from fastapi import Depends, FastAPI, Request, Response, status
+from fastapi import Depends, FastAPI, Query, Request, Response, status
 from fastapi.exceptions import RequestValidationError
 from redis.asyncio import Redis
 from starlette.exceptions import HTTPException
@@ -24,6 +25,10 @@ from app.modules.auth.router import SessionDependency, SettingsDependency
 from app.modules.auth.router import login as auth_login
 from app.modules.auth.router import register as auth_register
 from app.modules.auth.schemas import LoginRequest, RegisterRequest, TokenResponse, UserPublic
+from app.modules.tenants.router import CurrentUserDependency, TenantSessionDependency
+from app.modules.tenants.router import create_tenant as tenant_create
+from app.modules.tenants.router import list_tenants as tenant_list
+from app.modules.tenants.schemas import TenantCreateRequest, TenantPage, TenantPublic
 
 
 @asynccontextmanager
@@ -132,6 +137,29 @@ async def login(
 @app.get("/v1/auth/me", tags=["用户认证"], response_model=UserPublic, summary="查看当前登录用户")
 async def me(user: Annotated[User, Depends(get_current_user)]) -> User:
     return user
+
+
+@app.post(
+    "/v1/tenants",
+    tags=["企业管理"],
+    response_model=TenantPublic,
+    status_code=status.HTTP_201_CREATED,
+    summary="创建企业并成为管理员",
+)
+async def create_tenant(
+    data: TenantCreateRequest, user: CurrentUserDependency, session: TenantSessionDependency
+) -> TenantPublic:
+    return await tenant_create(data, user, session)
+
+
+@app.get("/v1/tenants", tags=["企业管理"], response_model=TenantPage, summary="查询我加入的企业")
+async def list_tenants(
+    user: CurrentUserDependency,
+    session: TenantSessionDependency,
+    limit: Annotated[int, Query(ge=1, le=100, title="每页条数")] = 20,
+    cursor: Annotated[UUID | None, Query(title="上一页返回的 next_cursor")] = None,
+) -> TenantPage:
+    return await tenant_list(user, session, limit, cursor)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:

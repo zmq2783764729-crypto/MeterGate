@@ -1,6 +1,6 @@
 # MeterGate｜进度与交接
 
-> 最后更新：2026-10-20（Asia/Shanghai）。开发完成 4 / 30；第 04 天用户验收通过，下一步第 05 天。
+> 最后更新：2026-10-20（Asia/Shanghai）。开发完成 4 / 30；第 05 天已实现与自动验证，等待用户Postman验收。
 > 本文件是本仓库唯一的进度记录；计划见 [docs/plan.md](docs/plan.md)。
 
 ## 接续规则
@@ -40,10 +40,10 @@
 ### 当前进度
 
 - 已完成：第 01—04 天；应用骨架、数据库/Redis连接与迁移、健康检查、请求编号、统一错误、安全日志，以及用户注册、密码登录和JWT身份认证。
-- 当前任务：第 04 天已通过用户 Postman 验收；下一步按计划开展第 05 天企业与成员关系，尚未实现。
+- 当前任务：第05天企业创建与成员关系代码、迁移和自动验证完成，等待用户按 [第05天测试集](docs/day05-test-cases.md) 的18行用例进行Postman验收；讲解见 [第05天练习](docs/day05-practice.md)。
 - 关键文件：`pyproject.toml`、`uv.lock`、`.python-version`、`.env.example`、`app/main.py`、`app/core/config.py`、`app/api/{router,health}.py`、`tests/test_app.py`、`docs/scope.md`、`README.md`。
 - 已实现：`Settings`、`create_app()`、连接资源 `lifespan()`、`GET /health/live` 与 `/health/ready`；Base、async_sessionmaker、get_session。配置用 MG_ 前缀，连接地址/密钥使用 SecretStr；service 显式决定事务提交，Session 不自动提交。
-- 最近一次完整测试（2026-10-15）：**66 passed**，在专属临时 PostgreSQL 库运行，包含此前 33 项与认证安全、真实数据库注册登录、强制并发邮箱冲突；未提供 MG_TEST_DATABASE_URL 时，常规运行是 64 passed、2 skipped。后续接口组织调整的检查见最近记录，本次收尾未重跑自动化测试。
+- 最近一次完整测试（2026-10-20）：**81 passed**，在专属临时PostgreSQL库运行，覆盖现有认证/日志回归，以及企业创建、隔离、分页、失败回滚和成员约束。未设置MG_TEST_DATABASE_URL时常规运行是72 passed、9 skipped；真实数据库测试只接受指定前缀的专属测试库。
 - 最新真实连接验证：独立 Session、SELECT 1、会话退出回滚未提交事务、归还连接、lifespan 关闭 PostgreSQL/Redis 连接通过；使用独立测试库，未修改用户 .env 或开发库。
 - 实际故障验证：用户停止 PostgreSQL，live=200、ready=503；恢复后无需重启应用，ready=200。截图证据通过，助手最后读取当前 8000 端口 live/ready 均为 200。
 - 迁移：alembic.ini、migrations/env.py、版本文件模板已配置；0001_baseline 执行成功，数据库 alembic_version.version_num 为 0001_baseline。此版本 upgrade/downgrade 为空操作，仅建立迁移基线，不代表业务表已创建。
@@ -59,16 +59,30 @@
 - 第 04 天 HTTP：独立服务注册201、重复409、登录200、当前用户200、无效令牌401；日志无演示敏感值。专属临时库和验收服务已清理。
 - 本机配置：仅为原先缺失的 MG_JWT_SECRET 生成随机值并保存于忽略的 .env，未打印或提交密钥；JWT 其他参数默认值见 .env.example。用户已完成本机 Postman 验收。
 - 第 04 天用户验收（2026-10-20）：用户确认 Markdown 测试集9项全部测试完毕、没有问题，记录为通过；未提供逐项响应原文，依据用户明确反馈收尾。
-- 问题/待定项：第 04 天验收无阻塞；刷新令牌和注销撤销不在本轮范围，租户与成员功能下一步实现。
-- Git 核对：第03天提交 331a41d 已推送到 origin/main，ls-remote 核对远端完整哈希一致；补齐前序遗漏文件。第04天工作保留本地，尚未提交或推送。
+- 第05天模型：tenants和tenant_memberships，角色admin/member；成员关系有企业/用户外键、角色检查、(tenant_id,user_id)联合唯一约束与user_id索引。
+- 第05天接口：main.py顶层@app定义POST /v1/tenants和GET /v1/tenants；创建企业与管理员成员同一事务提交，成员写入失败全部回滚；列表只查当前登录用户的成员关系，采用items/next_cursor和UUID升序分页，limit为1—100。
+- 第05天会话：认证读取和企业业务会话独立，业务依赖use_cache=False，避免认证SELECT触发autobegin后重复begin；不更改既有认证接口与会话依赖。
+- 第05天验证：独立库81项通过，包含成员写入前/后异常的双表回滚、数据库唯一/角色/外键约束；真实HTTP验证两用户创建与隔离、缺失令牌401、无效名称422，日志无演示敏感值，临时库及验收服务已清理。
+- 第05天迁移：本机开发库已从0002_users升级到0003_tenants，alembic check无差异；只新增企业/成员表，已有用户及手动测试数据保留，未向开发库写入自动化验收用户或企业。
+- 问题/待定项：等待第05天用户验收，完成数保持4/30；成员添加/列表、租户权限与最后管理员保护按第06天实现。
+- Git核对：本次本地HEAD为6433ef0（第04天提交标题），但auth实现、0002_users等关键文件仍未跟踪；不能只凭标题认定文件齐全。本次未核对远端，未暂存、提交或推送；第05天修改保留在本地。
 
-### 下一步：第 05 天企业与成员关系
+### 下一步：第05天用户验收
 
-1. 按 docs/plan.md 第05天实现企业与成员关系，复用当前用户认证；本次只记录下一步，尚未开始实现。
-2. 继续由助手实现并讲解，手动验收用Markdown逐行列出Postman用例。
-3. 第04天提交与推送仍按后续明确要求执行，本次未操作Git暂存、提交或推送。
+1. 用户重启FastAPI，按docs/day05-test-cases.md逐行操作：新建A/B两个用户，验证管理员创建、分页、企业隔离及401/422。
+2. 结合docs/day05-practice.md讲解多对多关系、联合唯一约束、同事务写入、独立业务会话与按成员关系过滤；失败时先修复，不提前开展第06天。
+3. 用户确认通过后收尾第05天并更新完成数；Git提交与推送按后续明确要求执行，需包含应共享的未跟踪文件。
 
 ## 最近记录
+
+### 2026-10-20｜第05天企业创建与成员关系实现
+
+- 实现tenants五层代码、0003_tenants迁移与main.py两个顶层接口；当前用户来自认证依赖，客户端仅能填写企业名称。创建者成员固定admin，成员添加与权限接口仍留待第06天。
+- 事务：独立业务会话避免与认证autobegin冲突；企业与成员写入共用一个begin，repository仅flush。列表SQL按认证用户过滤，并返回UUID游标分页。
+- 验证：独立临时库完整81 passed；真实HTTP企业相关状态201/200/200/201/200/401/422，两用户互不可见；迁移空库升级、重复升级、回退到0002再升级及差异检查通过。临时库和临时服务已清理。
+- 本机开发库已升级到0003_tenants，alembic check无差异；未清理用户数据。常规无数据库测试72 passed、9 skipped。
+- 交付docs/day05-practice.md与docs/day05-test-cases.md（18行Postman用例），同步README和代码用途汇总。全项目Ruff检查及格式检查（69个文件）、锁文件一致性、git diff --check通过；56个Python用途注释、文档链接、18行测试表和7个main.py顶层@app接口核对通过。未暂存、提交或推送。
+- 下一步等待用户逐行验收；完成数仍为4/30。
 
 ### 2026-10-20｜第04天用户验收通过
 

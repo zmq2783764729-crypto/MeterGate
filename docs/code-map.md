@@ -1,8 +1,8 @@
 # MeterGate 代码文件用途汇总
 
-> 更新时间：2026-10-20。与每个 Python 文件首行的 `# 用途：` 注释逐一对应。
+> 更新时间：2026-10-20。与每个Python文件首行的 `# 用途：` 注释逐一对应。
 
-当前共有 **48 个 Python 文件**。预留模块不能视为业务功能已实现。
+当前共有 **56 个Python文件**。预留模块不能视为业务功能已实现。
 
 ## 已有实现及包入口
 
@@ -32,9 +32,16 @@
 | [app/modules/auth/router.py](../app/modules/auth/router.py) | 提供 main.py 顶层认证接口调用的处理函数，以及会话和配置依赖类型。 |
 | [app/modules/auth/schemas.py](../app/modules/auth/schemas.py) | 校验注册登录输入、统一邮箱大小写，并定义不含密码哈希的用户与令牌响应。 |
 | [app/modules/auth/service.py](../app/modules/auth/service.py) | 编排用户注册和密码认证，管理注册事务并将邮箱唯一冲突转换为业务错误。 |
+| [app/modules/tenants/__init__.py](../app/modules/tenants/__init__.py) | 标识企业业务包，已实现企业创建和成员关系，成员管理与权限入口后续实现。 |
+| [app/modules/tenants/models.py](../app/modules/tenants/models.py) | 定义企业和成员关系表，通过外键、角色检查与联合唯一约束保护成员数据。 |
+| [app/modules/tenants/repository.py](../app/modules/tenants/repository.py) | 写入企业与成员关系，并按已认证用户的成员关系过滤和分页查询企业。 |
+| [app/modules/tenants/router.py](../app/modules/tenants/router.py) | 为 main.py 的企业接口提供处理函数、当前用户依赖和独立业务会话。 |
+| [app/modules/tenants/schemas.py](../app/modules/tenants/schemas.py) | 校验企业名称，定义当前用户在企业中的角色及 items/next_cursor 游标分页响应。 |
+| [app/modules/tenants/service.py](../app/modules/tenants/service.py) | 在同一事务内创建企业及管理员成员，并返回当前用户可见的企业分页。 |
 | [migrations/env.py](../migrations/env.py) | 读取应用配置与模型元数据，通过异步 PostgreSQL 连接执行 Alembic 迁移或输出 SQL。 |
 | [migrations/versions/0001_baseline_initialize_migration_baseline.py](../migrations/versions/0001_baseline_initialize_migration_baseline.py) | initialize migration baseline；记录本次表结构升级与回退操作。 |
 | [migrations/versions/0002_users_create_users_table.py](../migrations/versions/0002_users_create_users_table.py) | 创建 users 表与邮箱唯一约束，回退时删除用户表。 |
+| [migrations/versions/0003_tenants_create_tenants_and_memberships.py](../migrations/versions/0003_tenants_create_tenants_and_memberships.py) | 创建企业及成员关系表、外键、角色检查和联合唯一约束，回退时按依赖逆序删除。 |
 | [tests/test_app.py](../tests/test_app.py) | 验证应用配置互不串用、健康响应与配置显示不泄露测试密钥，以及生命周期正常结束。 |
 | [tests/test_auth_database.py](../tests/test_auth_database.py) | 在专属 PostgreSQL 测试库验证注册登录、真实唯一约束并发冲突、令牌身份和敏感值隐藏。 |
 | [tests/test_auth_security.py](../tests/test_auth_security.py) | 验证 Argon2 密码、邮箱输入和 JWT 的签名、声明、算法白名单与认证配置边界。 |
@@ -43,8 +50,10 @@
 | [tests/test_request_context.py](../tests/test_request_context.py) | 验证请求编号在成功与错误响应中一致可查、每请求唯一、并发隔离且异常后正确清理。 |
 | [tests/test_request_logging.py](../tests/test_request_logging.py) | 验证请求与错误日志的编号关联、并发隔离、字段安全、日志级别及重复配置行为。 |
 | [tests/test_response_language.py](../tests/test_response_language.py) | 验证中文健康状态、接口说明和错误提示，并确保参数与内部异常不泄露到响应。 |
+| [tests/test_tenant_contract.py](../tests/test_tenant_contract.py) | 验证企业名称与额外字段校验，以及企业接口在缺少有效身份时返回统一401错误。 |
+| [tests/test_tenant_database.py](../tests/test_tenant_database.py) | 在专属PostgreSQL库验证企业管理员创建、用户隔离、游标分页、失败回滚及真实成员约束。 |
 
-迁移配套文件：alembic.ini 指定目录和日志；migrations/script.py.mako 提供版本模板。0001_baseline 为版本基线；0002_users 创建用户表及邮箱唯一约束，已在本机开发库升级。
+迁移配套文件：alembic.ini指定目录和日志，migrations/script.py.mako提供版本模板。0001_baseline是基线；0002_users创建用户表；0003_tenants创建企业、成员关系及约束。本机已升级到0003_tenants。
 
 ## 预留模块
 
@@ -60,16 +69,15 @@
 | [app/modules/metering/__init__.py](../app/modules/metering/__init__.py) | 预留用量事件、幂等接收、并发额度扣减和用量查询业务模块，尚未实现。 |
 | [app/modules/payments/__init__.py](../app/modules/payments/__init__.py) | 预留支付会话、回调验签、回调幂等和账单付款状态业务模块，尚未实现。 |
 | [app/modules/subscriptions/__init__.py](../app/modules/subscriptions/__init__.py) | 预留订阅状态、计费周期、套餐变更和取消业务模块，尚未实现。 |
-| [app/modules/tenants/__init__.py](../app/modules/tenants/__init__.py) | 预留企业租户、成员关系和角色管理业务模块，尚未实现。 |
 | [app/observability/__init__.py](../app/observability/__init__.py) | 预留运行指标及其他可观测性功能包，尚未实现。 |
 | [app/workers/__init__.py](../app/workers/__init__.py) | 预留后台任务、消息代理和事务 Outbox 执行包，尚未实现。 |
 
 ## 建议阅读顺序
 
-1. app/main.py：应用创建、请求中间件、错误处理和资源生命周期。
-2. app/core/config.py：配置读取；app/api/router.py：为独立应用工厂复制接口。
-3. app/modules/auth/models.py → schemas.py → repository.py → service.py → router.py：第04天分层实现。
-4. app/core/security.py → app/dependencies/auth.py：密码哈希、JWT 与登录用户注入。
-5. [第04天讲解与 Postman 练习](day04-practice.md)。
+1. app/main.py：顶层@app接口、应用创建和资源生命周期；app/api/router.py：工厂复制接口。
+2. app/core/config.py与app/core/security.py：配置、密码哈希和JWT。
+3. app/modules/auth：注册登录分层；app/dependencies/auth.py：登录用户依赖。
+4. app/modules/tenants/models.py → schemas.py → repository.py → service.py → router.py：企业、成员关系和事务。
+5. [第05天代码讲解](day05-practice.md)与[逐行Postman测试集](day05-test-cases.md)。
 
-实现进度只在 [progress.md](../progress.md) 维护，本文件汇总代码职责，不另建进度体系。
+实现进度只在[progress.md](../progress.md)维护，本文件汇总代码职责，不另建进度体系。
