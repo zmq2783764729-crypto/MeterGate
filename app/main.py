@@ -25,10 +25,27 @@ from app.modules.auth.router import SessionDependency, SettingsDependency
 from app.modules.auth.router import login as auth_login
 from app.modules.auth.router import register as auth_register
 from app.modules.auth.schemas import LoginRequest, RegisterRequest, TokenResponse, UserPublic
-from app.modules.tenants.router import CurrentUserDependency, TenantSessionDependency
+from app.modules.tenants.router import (
+    AdminTenantDependency,
+    CurrentUserDependency,
+    TenantContextDependency,
+    TenantSessionDependency,
+)
+from app.modules.tenants.router import add_member as tenant_add_member
 from app.modules.tenants.router import create_tenant as tenant_create
+from app.modules.tenants.router import delete_member as tenant_delete_member
+from app.modules.tenants.router import list_members as tenant_list_members
 from app.modules.tenants.router import list_tenants as tenant_list
-from app.modules.tenants.schemas import TenantCreateRequest, TenantPage, TenantPublic
+from app.modules.tenants.router import update_member as tenant_update_member
+from app.modules.tenants.schemas import (
+    MemberAddRequest,
+    MemberPage,
+    MemberPublic,
+    MemberRoleRequest,
+    TenantCreateRequest,
+    TenantPage,
+    TenantPublic,
+)
 
 
 @asynccontextmanager
@@ -160,6 +177,63 @@ async def list_tenants(
     cursor: Annotated[UUID | None, Query(title="上一页返回的 next_cursor")] = None,
 ) -> TenantPage:
     return await tenant_list(user, session, limit, cursor)
+
+
+@app.post(
+    "/v1/tenants/{tenant_id}/members",
+    tags=["企业成员"],
+    response_model=MemberPublic,
+    status_code=status.HTTP_201_CREATED,
+    summary="添加已注册用户为企业成员",
+)
+async def add_member(
+    data: MemberAddRequest, context: AdminTenantDependency, session: TenantSessionDependency
+) -> MemberPublic:
+    return await tenant_add_member(data, context, session)
+
+
+@app.get(
+    "/v1/tenants/{tenant_id}/members",
+    tags=["企业成员"],
+    response_model=MemberPage,
+    summary="查询本企业成员",
+)
+async def list_members(
+    context: TenantContextDependency,
+    session: TenantSessionDependency,
+    limit: Annotated[int, Query(ge=1, le=100, title="每页条数")] = 20,
+    cursor: Annotated[UUID | None, Query(title="上一页返回的 next_cursor")] = None,
+) -> MemberPage:
+    return await tenant_list_members(context, session, limit, cursor)
+
+
+@app.patch(
+    "/v1/tenants/{tenant_id}/members/{user_id}",
+    tags=["企业成员"],
+    response_model=MemberPublic,
+    summary="修改企业成员角色",
+)
+async def update_member(
+    user_id: UUID,
+    data: MemberRoleRequest,
+    context: AdminTenantDependency,
+    session: TenantSessionDependency,
+) -> MemberPublic:
+    return await tenant_update_member(user_id, data, context, session)
+
+
+@app.delete(
+    "/v1/tenants/{tenant_id}/members/{user_id}",
+    tags=["企业成员"],
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+    summary="移除企业成员",
+)
+async def delete_member(
+    user_id: UUID, context: AdminTenantDependency, session: TenantSessionDependency
+) -> Response:
+    await tenant_delete_member(user_id, context, session)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:

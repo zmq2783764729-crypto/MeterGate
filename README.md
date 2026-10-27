@@ -2,7 +2,7 @@
 
 企业与成员、API Key、套餐订阅、用量额度、账单、模拟支付和审计。
 
-当前完成第01—04天；第05天已实现企业创建、管理员成员关系和当前用户企业分页，自动验证通过，等待用户Postman验收。[第05天代码讲解](docs/day05-practice.md)说明表关系、事务和隔离；[第05天测试集](docs/day05-test-cases.md)按行列出18项手动用例。
+当前完成第01—05天；第06天已实现租户上下文、角色权限与成员管理，109项自动测试通过，等待用户Postman验收。[第06天讲解](docs/day06-practice.md)说明授权与最后管理员保护；[第06天测试集](docs/day06-test-cases.md)按行列出28项手动用例。
 
 ## 启动
 
@@ -36,6 +36,7 @@ uv run uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 - OpenAPI 文档：`http://127.0.0.1:8000/docs`
 - 注册：`POST /v1/auth/register`；登录：`POST /v1/auth/login`；当前用户：`GET /v1/auth/me`。
 - 创建企业：`POST /v1/tenants`；我的企业分页：`GET /v1/tenants?limit=20`；两者均需要Bearer令牌。
+- 企业成员：`POST/GET /v1/tenants/{tenant_id}/members`，`PATCH/DELETE /v1/tenants/{tenant_id}/members/{user_id}`；本企业管理员管理成员，普通成员可读列表，至少保留一个管理员。
 - live 反映应用存活；ready 实际检查 PostgreSQL 与 Redis，任一项未配置或不可用返回 503。
 
 用户可见的健康状态和错误提示统一使用中文，字段名与 HTTP 状态码保持原样。例如 ready 正常时返回 `{"status":"已就绪","checks":{"database":"正常","redis":"正常"}}`，live 的 `status` 为 `正常`。依赖故障返回 `未就绪`，检查项为 `不可用` 或 `未配置`；按英文状态值判断的旧脚本需同步调整。
@@ -52,7 +53,7 @@ uv run pytest
 
 ## 结构与配置
 
-`app/main.py`在模块顶层用@app定义接口；`app/api/router.py`为独立工厂复制接口。`app/core`管理配置、错误、日志与安全工具，`app/db`提供模型基类、连接池与会话。`modules/auth`实现注册登录，`modules/tenants`实现企业和成员关系；`dependencies/auth.py`提供当前用户，`middleware`管理请求追踪。迁移当前为0003_tenants，本机已升级；其他电脑需执行迁移后再测试。`deploy/compose.dev.yml`提供本机PostgreSQL与Redis，操作见 [第02天练习](docs/day02-practice.md)。
+`app/main.py`在模块顶层用@app定义接口；`app/api/router.py`为独立工厂复制接口。`app/core`管理配置、错误、日志与安全工具，`app/db`提供模型基类、连接池与会话。`modules/auth`实现注册登录，`modules/tenants`实现企业和成员管理；`dependencies/{auth,tenant,permissions}.py`提供身份、租户与角色依赖，`middleware`管理请求追踪。迁移仍为0003_tenants，第06天无需新增迁移。`deploy/compose.dev.yml`提供本机PostgreSQL与Redis，操作见 [第02天练习](docs/day02-practice.md)。
 
 配置变量使用 `MG_` 前缀，从本项目 `.env` 或环境读取。数据库 URL 和 JWT 密钥采用 SecretStr，禁止向日志输出原始值。`.env` 不提交 Git。
 
