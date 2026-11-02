@@ -1,10 +1,10 @@
-# MeterGate 代码文件用途汇总
+# MeterGate代码文件用途汇总
 
-> 更新时间：2026-10-27。与每个Python文件首行的 `# 用途：` 注释逐一对应。
+> 更新时间：2026-11-02。与Python文件首行用途注释对应。
 
-当前共有 **73 个Python文件**。预留模块不能视为业务功能已实现。
+当前共有 **83 个Python文件**，包含应用、测试、迁移和平台脚本。预留不代表已实现。
 
-## 已有实现及包入口
+## 已有实现与包入口
 
 | 文件 | 文件首行用途说明 |
 |---|---|
@@ -43,6 +43,12 @@
 | [app/modules/auth/router.py](../app/modules/auth/router.py) | 提供 main.py 顶层认证接口调用的处理函数，以及会话和配置依赖类型。 |
 | [app/modules/auth/schemas.py](../app/modules/auth/schemas.py) | 校验注册登录输入、统一邮箱大小写，并定义不含密码哈希的用户与令牌响应。 |
 | [app/modules/auth/service.py](../app/modules/auth/service.py) | 编排用户注册和密码认证，管理注册事务并将邮箱唯一冲突转换为业务错误。 |
+| [app/modules/catalog/__init__.py](../app/modules/catalog/__init__.py) | 标识平台套餐业务包，提供只追加价格版本、演示初始化和公开只读查询。 |
+| [app/modules/catalog/models.py](../app/modules/catalog/models.py) | 定义稳定套餐与只追加价格版本，约束币种、计费周期、金额、额度和版本唯一性。 |
+| [app/modules/catalog/repository.py](../app/modules/catalog/repository.py) | 查询公开套餐及历史版本，锁定套餐分配版本号，写入价格版本但不提交事务。 |
+| [app/modules/catalog/router.py](../app/modules/catalog/router.py) | 为main.py公开套餐只读接口提供会话依赖和处理函数，不提供租户管理员发布接口。 |
+| [app/modules/catalog/schemas.py](../app/modules/catalog/schemas.py) | 严格校验整数分金额和正整数额度，并定义套餐、历史版本与分页公开响应。 |
+| [app/modules/catalog/service.py](../app/modules/catalog/service.py) | 以追加方式发布价格版本，幂等初始化演示套餐，并组装公开套餐与历史版本查询。 |
 | [app/modules/tenants/__init__.py](../app/modules/tenants/__init__.py) | 标识企业业务包，提供企业创建、租户上下文、成员管理和管理员保护。 |
 | [app/modules/tenants/authorization.py](../app/modules/tenants/authorization.py) | 为企业管理写事务锁定企业行，并复核操作者当前数据库中的管理员身份。 |
 | [app/modules/tenants/context.py](../app/modules/tenants/context.py) | 提供不可变租户上下文，携带经过数据库成员关系验证的企业、用户和角色。 |
@@ -56,11 +62,16 @@
 | [migrations/versions/0002_users_create_users_table.py](../migrations/versions/0002_users_create_users_table.py) | 创建 users 表与邮箱唯一约束，回退时删除用户表。 |
 | [migrations/versions/0003_tenants_create_tenants_and_memberships.py](../migrations/versions/0003_tenants_create_tenants_and_memberships.py) | 创建企业及成员关系表、外键、角色检查和联合唯一约束，回退时按依赖逆序删除。 |
 | [migrations/versions/0004_api_keys_create_api_keys.py](../migrations/versions/0004_api_keys_create_api_keys.py) | 创建只保存摘要的企业API Key表，包含权限与有效期约束，回退时删除密钥表。 |
+| [migrations/versions/0005_catalog_create_plans_and_immutable_versions.py](../migrations/versions/0005_catalog_create_plans_and_immutable_versions.py) | 创建套餐和价格版本表，并以数据库触发器禁止修改、删除或清空历史版本。 |
+| [scripts/__init__.py](../scripts/__init__.py) | 标识本机平台维护脚本包，脚本通过项目解释器运行，不作为HTTP接口开放。 |
+| [scripts/seed_catalog.py](../scripts/seed_catalog.py) | 幂等初始化基础与专业套餐，或通过平台本机命令追加新价格版本，拒绝非法金额和额度。 |
 | [tests/test_api_key_contract.py](../tests/test_api_key_contract.py) | 验证API Key生成解析、输入边界与畸形密钥在查库前得到401。 |
 | [tests/test_api_key_database.py](../tests/test_api_key_database.py) | 在专属PostgreSQL库验证密钥摘要存储、管理员隔离、scope、过期、撤销和日志安全。 |
 | [tests/test_app.py](../tests/test_app.py) | 验证应用配置互不串用、健康响应与配置显示不泄露测试密钥，以及生命周期正常结束。 |
 | [tests/test_auth_database.py](../tests/test_auth_database.py) | 在专属 PostgreSQL 测试库验证注册登录、真实唯一约束并发冲突、令牌身份和敏感值隐藏。 |
 | [tests/test_auth_security.py](../tests/test_auth_security.py) | 验证 Argon2 密码、邮箱输入和 JWT 的签名、声明、算法白名单与认证配置边界。 |
+| [tests/test_catalog_contract.py](../tests/test_catalog_contract.py) | 验证价格和额度的严格整数边界，拒绝负数、浮点、布尔值及非法计费条款。 |
+| [tests/test_catalog_database.py](../tests/test_catalog_database.py) | 在专属PostgreSQL库验证套餐幂等初始化、追加版本、并发编号、历史不可改和公开查询。 |
 | [tests/test_db_runtime.py](../tests/test_db_runtime.py) | 验证就绪检查的故障、超时与脱敏行为，以及连接资源在正常和异常路径下正确释放。 |
 | [tests/test_error_contract.py](../tests/test_error_contract.py) | 验证领域、HTTP、参数和未知错误的统一响应、请求编号一致性及敏感内容隐藏。 |
 | [tests/test_member_contract.py](../tests/test_member_contract.py) | 验证成员输入边界与四个成员接口的未认证401响应，避免暴露租户数据。 |
@@ -71,7 +82,7 @@
 | [tests/test_tenant_contract.py](../tests/test_tenant_contract.py) | 验证企业名称与额外字段校验，以及企业接口在缺少有效身份时返回统一401错误。 |
 | [tests/test_tenant_database.py](../tests/test_tenant_database.py) | 在专属PostgreSQL库验证企业管理员创建、用户隔离、游标分页、失败回滚及真实成员约束。 |
 
-迁移配套文件：alembic.ini指定目录和日志，migrations/script.py.mako提供版本模板。0001_baseline为基线，0002_users创建用户，0003_tenants创建企业和成员关系，0004_api_keys创建摘要密钥表。本机已升级0004_api_keys。
+迁移当前0005_catalog，包含套餐/历史版本和不可变触发器；本机已升级并初始化演示v1。
 
 ## 预留模块
 
@@ -81,7 +92,6 @@
 | [app/integrations/payments/__init__.py](../app/integrations/payments/__init__.py) | 预留支付提供方接口及模拟支付适配器包，尚未实现。 |
 | [app/modules/audit/__init__.py](../app/modules/audit/__init__.py) | 预留关键业务操作的审计记录和审计查询模块，尚未实现。 |
 | [app/modules/billing/__init__.py](../app/modules/billing/__init__.py) | 预留周期计价、账单生成、账单查询和对账业务模块，尚未实现。 |
-| [app/modules/catalog/__init__.py](../app/modules/catalog/__init__.py) | 预留套餐及不可变价格版本管理业务模块，尚未实现。 |
 | [app/modules/demo/__init__.py](../app/modules/demo/__init__.py) | 预留服务端计量的数据查询演示接口及结果重放业务模块，尚未实现。 |
 | [app/modules/metering/__init__.py](../app/modules/metering/__init__.py) | 预留用量事件、幂等接收、并发额度扣减和用量查询业务模块，尚未实现。 |
 | [app/modules/payments/__init__.py](../app/modules/payments/__init__.py) | 预留支付会话、回调验签、回调幂等和账单付款状态业务模块，尚未实现。 |
@@ -89,13 +99,12 @@
 | [app/observability/__init__.py](../app/observability/__init__.py) | 预留运行指标及其他可观测性功能包，尚未实现。 |
 | [app/workers/__init__.py](../app/workers/__init__.py) | 预留后台任务、消息代理和事务 Outbox 执行包，尚未实现。 |
 
-## 建议阅读顺序
+## 第08天阅读路线
 
-1. app/main.py：顶层@app接口、应用创建与生命周期。
-2. app/dependencies/auth.py → tenant.py → permissions.py：用户、租户与角色验证。
-3. app/modules/api_keys/security.py → models.py → schemas.py：随机凭据、摘要与公开响应边界。
-4. app/modules/api_keys/service.py与app/modules/tenants/authorization.py：管理员事务与创建/撤销。
-5. app/dependencies/api_key.py：机器身份、撤销/有效期和scope。
-6. [第07天代码讲解](day07-practice.md)与[逐行Postman测试集](day07-test-cases.md)。
+1. app/main.py的三个公开套餐接口 → catalog/router.py → service.py → repository.py。
+2. catalog/models.py与schemas.py：表结构和严格整数边界。
+3. scripts/seed_catalog.py：初始化与追加版本两个动作。
+4. 0005_catalog迁移：数据库不可变保护。
+5. [详细学习文档](day08-practice.md)与[实测记录](day08-test-cases.md)。
 
-实现进度只在[progress.md](../progress.md)维护，本文件汇总代码职责，不另建进度体系。
+唯一进度记录为[progress.md](../progress.md)，本文件仅汇总代码职责。

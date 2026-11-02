@@ -35,6 +35,11 @@ from app.modules.auth.router import SessionDependency, SettingsDependency
 from app.modules.auth.router import login as auth_login
 from app.modules.auth.router import register as auth_register
 from app.modules.auth.schemas import LoginRequest, RegisterRequest, TokenResponse, UserPublic
+from app.modules.catalog.router import CatalogSession
+from app.modules.catalog.router import list_plans as catalog_list
+from app.modules.catalog.router import list_versions as catalog_versions
+from app.modules.catalog.router import version_detail as catalog_version
+from app.modules.catalog.schemas import PlanPage, PlanVersionPage, PlanVersionPublic
 from app.modules.tenants.router import (
     AdminTenantDependency,
     CurrentUserDependency,
@@ -309,6 +314,40 @@ async def verify_demo_key(context: DemoReadKeyDependency) -> ApiKeyIdentity:
 )
 async def verify_usage_key(context: UsageWriteKeyDependency) -> ApiKeyIdentity:
     return key_identity(context)
+
+
+@app.get("/v1/plans", tags=["公开套餐"], response_model=PlanPage, summary="查询套餐及最新价格版本")
+async def list_plans(
+    session: CatalogSession,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    cursor: UUID | None = None,
+) -> PlanPage:
+    return await catalog_list(session, limit, cursor)
+
+
+@app.get(
+    "/v1/plans/{plan_id}/versions",
+    tags=["公开套餐"],
+    response_model=PlanVersionPage,
+    summary="查询套餐历史价格版本",
+)
+async def list_plan_versions(
+    plan_id: UUID,
+    session: CatalogSession,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    cursor: Annotated[int | None, Query(ge=1)] = None,
+) -> PlanVersionPage:
+    return await catalog_versions(plan_id, session, limit, cursor)
+
+
+@app.get(
+    "/v1/plan-versions/{version_id}",
+    tags=["公开套餐"],
+    response_model=PlanVersionPublic,
+    summary="查询指定历史价格版本",
+)
+async def get_plan_version(version_id: UUID, session: CatalogSession) -> PlanVersionPublic:
+    return await catalog_version(version_id, session)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
