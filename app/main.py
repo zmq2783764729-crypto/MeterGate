@@ -20,6 +20,16 @@ from app.core.logging import configure_logging
 from app.db.session import create_db_engine, create_session_factory
 from app.dependencies.auth import get_current_user
 from app.middleware.request_context import RequestContextMiddleware
+from app.modules.api_keys.router import DemoReadKeyDependency, UsageWriteKeyDependency, key_identity
+from app.modules.api_keys.router import create_key as api_key_create
+from app.modules.api_keys.router import list_keys as api_key_list
+from app.modules.api_keys.router import revoke_key as api_key_revoke
+from app.modules.api_keys.schemas import (
+    ApiKeyCreated,
+    ApiKeyCreateRequest,
+    ApiKeyIdentity,
+    ApiKeyPage,
+)
 from app.modules.auth.models import User
 from app.modules.auth.router import SessionDependency, SettingsDependency
 from app.modules.auth.router import login as auth_login
@@ -234,6 +244,71 @@ async def delete_member(
 ) -> Response:
     await tenant_delete_member(user_id, context, session)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@app.post(
+    "/v1/tenants/{tenant_id}/api-keys",
+    tags=["API Key管理"],
+    response_model=ApiKeyCreated,
+    status_code=status.HTTP_201_CREATED,
+    summary="创建企业API Key，完整密钥仅返回一次",
+)
+async def create_api_key(
+    data: ApiKeyCreateRequest,
+    response: Response,
+    context: AdminTenantDependency,
+    session: TenantSessionDependency,
+) -> ApiKeyCreated:
+    return await api_key_create(data, response, context, session)
+
+
+@app.get(
+    "/v1/tenants/{tenant_id}/api-keys",
+    tags=["API Key管理"],
+    response_model=ApiKeyPage,
+    summary="分页查询本企业密钥元数据",
+)
+async def list_api_keys(
+    context: AdminTenantDependency,
+    session: TenantSessionDependency,
+    limit: Annotated[int, Query(ge=1, le=100, title="每页条数")] = 20,
+    cursor: Annotated[UUID | None, Query(title="上一页返回的 next_cursor")] = None,
+) -> ApiKeyPage:
+    return await api_key_list(context, session, limit, cursor)
+
+
+@app.delete(
+    "/v1/tenants/{tenant_id}/api-keys/{key_id}",
+    tags=["API Key管理"],
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+    summary="撤销本企业API Key",
+)
+async def revoke_api_key(
+    key_id: UUID, context: AdminTenantDependency, session: TenantSessionDependency
+) -> Response:
+    await api_key_revoke(key_id, context, session)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@app.get(
+    "/v1/api-keys/verify/demo-read",
+    tags=["API Key验证"],
+    response_model=ApiKeyIdentity,
+    summary="校验密钥的demo:read权限",
+)
+async def verify_demo_key(context: DemoReadKeyDependency) -> ApiKeyIdentity:
+    return key_identity(context)
+
+
+@app.post(
+    "/v1/api-keys/verify/usage-write",
+    tags=["API Key验证"],
+    response_model=ApiKeyIdentity,
+    summary="校验密钥的usage:write权限",
+)
+async def verify_usage_key(context: UsageWriteKeyDependency) -> ApiKeyIdentity:
+    return key_identity(context)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:

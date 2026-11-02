@@ -1,15 +1,15 @@
 # MeterGate 代码文件用途汇总
 
-> 更新时间：2026-10-23。与每个Python文件首行的 `# 用途：` 注释逐一对应。
+> 更新时间：2026-10-27。与每个Python文件首行的 `# 用途：` 注释逐一对应。
 
-当前共有 **61 个Python文件**。预留模块不能视为业务功能已实现。
+当前共有 **73 个Python文件**。预留模块不能视为业务功能已实现。
 
 ## 已有实现及包入口
 
 | 文件 | 文件首行用途说明 |
 |---|---|
 | [app/__init__.py](../app/__init__.py) | 标识 MeterGate 应用包并提供应用版本号。 |
-| [app/api/__init__.py](../app/api/__init__.py) | 标识 HTTP 接口包，包含健康检查及健康与认证路由的汇总入口。 |
+| [app/api/__init__.py](../app/api/__init__.py) | 标识HTTP接口辅助包，提供健康检查处理及独立应用的路由复制。 |
 | [app/api/health.py](../app/api/health.py) | 提供 live 存活检查和 PostgreSQL/Redis 的 ready 就绪检查，故障时返回 503 且隐藏凭据。 |
 | [app/api/router.py](../app/api/router.py) | 为独立应用工厂复制已声明的 HTTP 接口，保持依赖覆盖与应用配置隔离。 |
 | [app/core/__init__.py](../app/core/__init__.py) | 标识核心配置包，当前包含环境配置模块。 |
@@ -20,7 +20,8 @@
 | [app/db/__init__.py](../app/db/__init__.py) | 标识数据库包，提供模型基类、异步连接池和请求会话管理。 |
 | [app/db/base.py](../app/db/base.py) | 提供 SQLAlchemy 模型基类，供后续业务模型与 Alembic 共享表结构元数据。 |
 | [app/db/session.py](../app/db/session.py) | 创建 PostgreSQL 异步连接池和会话工厂，为每次请求提供独立会话且不自动提交事务。 |
-| [app/dependencies/__init__.py](../app/dependencies/__init__.py) | 标识依赖注入包，提供登录用户认证、租户成员身份和角色权限校验。 |
+| [app/dependencies/__init__.py](../app/dependencies/__init__.py) | 标识依赖注入包，提供用户与机器认证、租户成员身份、角色和scope校验。 |
+| [app/dependencies/api_key.py](../app/dependencies/api_key.py) | 验证X-API-Key摘要、撤销和有效期，并通过可复用依赖限定机器调用scope。 |
 | [app/dependencies/auth.py](../app/dependencies/auth.py) | 注入认证配置，验证 Bearer 访问令牌，并从数据库加载当前登录用户。 |
 | [app/dependencies/permissions.py](../app/dependencies/permissions.py) | 提供可复用角色依赖，在可信租户上下文基础上限制接口允许的成员角色。 |
 | [app/dependencies/tenant.py](../app/dependencies/tenant.py) | 将URL企业编号与已认证用户的数据库成员关系匹配，生成可信租户上下文。 |
@@ -28,6 +29,14 @@
 | [app/middleware/__init__.py](../app/middleware/__init__.py) | 标识请求上下文中间件包，提供请求编号管理。 |
 | [app/middleware/request_context.py](../app/middleware/request_context.py) | 管理每次请求的独立编号与响应头，输出安全的完成或失败日志，并清理上下文。 |
 | [app/modules/__init__.py](../app/modules/__init__.py) | 标识业务模块包，为企业、订阅、计量和结算功能预留分层目录。 |
+| [app/modules/api_keys/__init__.py](../app/modules/api_keys/__init__.py) | 标识企业API Key业务包，提供创建、列表、撤销和机器身份scope校验。 |
+| [app/modules/api_keys/context.py](../app/modules/api_keys/context.py) | 提供通过API Key验证的机器身份，租户和权限仅来自数据库密钥记录。 |
+| [app/modules/api_keys/models.py](../app/modules/api_keys/models.py) | 定义企业API Key表，仅保存令牌摘要、显示前缀、权限范围、有效期及撤销状态。 |
+| [app/modules/api_keys/repository.py](../app/modules/api_keys/repository.py) | 按可信租户上下文写入、分页和查找密钥，机器认证仅按公开编号定位摘要记录。 |
+| [app/modules/api_keys/router.py](../app/modules/api_keys/router.py) | 为main.py提供API Key管理处理函数及两种scope的机器身份校验依赖。 |
+| [app/modules/api_keys/schemas.py](../app/modules/api_keys/schemas.py) | 校验密钥名称、权限和有效期，分开定义一次性完整密钥响应与普通公开元数据。 |
+| [app/modules/api_keys/security.py](../app/modules/api_keys/security.py) | 生成256位随机API Key并计算SHA-256摘要，解析格式且隐藏内存对象中的敏感值。 |
+| [app/modules/api_keys/service.py](../app/modules/api_keys/service.py) | 在管理员授权事务内创建或撤销企业密钥，列表只输出安全元数据。 |
 | [app/modules/auth/__init__.py](../app/modules/auth/__init__.py) | 标识用户认证业务包，包含用户模型、注册登录分层实现与公开响应结构。 |
 | [app/modules/auth/models.py](../app/modules/auth/models.py) | 定义用户表，保存唯一邮箱、密码哈希、UUID 主键和带时区的创建时间。 |
 | [app/modules/auth/repository.py](../app/modules/auth/repository.py) | 通过异步会话查询和添加用户，写入时 flush 但不自行提交事务。 |
@@ -35,6 +44,7 @@
 | [app/modules/auth/schemas.py](../app/modules/auth/schemas.py) | 校验注册登录输入、统一邮箱大小写，并定义不含密码哈希的用户与令牌响应。 |
 | [app/modules/auth/service.py](../app/modules/auth/service.py) | 编排用户注册和密码认证，管理注册事务并将邮箱唯一冲突转换为业务错误。 |
 | [app/modules/tenants/__init__.py](../app/modules/tenants/__init__.py) | 标识企业业务包，提供企业创建、租户上下文、成员管理和管理员保护。 |
+| [app/modules/tenants/authorization.py](../app/modules/tenants/authorization.py) | 为企业管理写事务锁定企业行，并复核操作者当前数据库中的管理员身份。 |
 | [app/modules/tenants/context.py](../app/modules/tenants/context.py) | 提供不可变租户上下文，携带经过数据库成员关系验证的企业、用户和角色。 |
 | [app/modules/tenants/models.py](../app/modules/tenants/models.py) | 定义企业和成员关系表，通过外键、角色检查与联合唯一约束保护成员数据。 |
 | [app/modules/tenants/repository.py](../app/modules/tenants/repository.py) | 按用户或可信租户上下文访问企业成员数据，并提供管理操作的企业行锁与管理员计数。 |
@@ -45,6 +55,9 @@
 | [migrations/versions/0001_baseline_initialize_migration_baseline.py](../migrations/versions/0001_baseline_initialize_migration_baseline.py) | initialize migration baseline；记录本次表结构升级与回退操作。 |
 | [migrations/versions/0002_users_create_users_table.py](../migrations/versions/0002_users_create_users_table.py) | 创建 users 表与邮箱唯一约束，回退时删除用户表。 |
 | [migrations/versions/0003_tenants_create_tenants_and_memberships.py](../migrations/versions/0003_tenants_create_tenants_and_memberships.py) | 创建企业及成员关系表、外键、角色检查和联合唯一约束，回退时按依赖逆序删除。 |
+| [migrations/versions/0004_api_keys_create_api_keys.py](../migrations/versions/0004_api_keys_create_api_keys.py) | 创建只保存摘要的企业API Key表，包含权限与有效期约束，回退时删除密钥表。 |
+| [tests/test_api_key_contract.py](../tests/test_api_key_contract.py) | 验证API Key生成解析、输入边界与畸形密钥在查库前得到401。 |
+| [tests/test_api_key_database.py](../tests/test_api_key_database.py) | 在专属PostgreSQL库验证密钥摘要存储、管理员隔离、scope、过期、撤销和日志安全。 |
 | [tests/test_app.py](../tests/test_app.py) | 验证应用配置互不串用、健康响应与配置显示不泄露测试密钥，以及生命周期正常结束。 |
 | [tests/test_auth_database.py](../tests/test_auth_database.py) | 在专属 PostgreSQL 测试库验证注册登录、真实唯一约束并发冲突、令牌身份和敏感值隐藏。 |
 | [tests/test_auth_security.py](../tests/test_auth_security.py) | 验证 Argon2 密码、邮箱输入和 JWT 的签名、声明、算法白名单与认证配置边界。 |
@@ -58,7 +71,7 @@
 | [tests/test_tenant_contract.py](../tests/test_tenant_contract.py) | 验证企业名称与额外字段校验，以及企业接口在缺少有效身份时返回统一401错误。 |
 | [tests/test_tenant_database.py](../tests/test_tenant_database.py) | 在专属PostgreSQL库验证企业管理员创建、用户隔离、游标分页、失败回滚及真实成员约束。 |
 
-迁移配套文件：alembic.ini指定目录和日志，migrations/script.py.mako提供版本模板。0001_baseline为基线，0002_users创建用户，0003_tenants创建企业和成员关系。第06天不改变表结构。
+迁移配套文件：alembic.ini指定目录和日志，migrations/script.py.mako提供版本模板。0001_baseline为基线，0002_users创建用户，0003_tenants创建企业和成员关系，0004_api_keys创建摘要密钥表。本机已升级0004_api_keys。
 
 ## 预留模块
 
@@ -66,7 +79,6 @@
 |---|---|
 | [app/integrations/__init__.py](../app/integrations/__init__.py) | 预留支付等外部服务的适配器包，尚未实现。 |
 | [app/integrations/payments/__init__.py](../app/integrations/payments/__init__.py) | 预留支付提供方接口及模拟支付适配器包，尚未实现。 |
-| [app/modules/api_keys/__init__.py](../app/modules/api_keys/__init__.py) | 预留企业 API Key 的创建、权限范围、到期和撤销业务模块，尚未实现。 |
 | [app/modules/audit/__init__.py](../app/modules/audit/__init__.py) | 预留关键业务操作的审计记录和审计查询模块，尚未实现。 |
 | [app/modules/billing/__init__.py](../app/modules/billing/__init__.py) | 预留周期计价、账单生成、账单查询和对账业务模块，尚未实现。 |
 | [app/modules/catalog/__init__.py](../app/modules/catalog/__init__.py) | 预留套餐及不可变价格版本管理业务模块，尚未实现。 |
@@ -79,10 +91,11 @@
 
 ## 建议阅读顺序
 
-1. app/main.py：顶层@app接口、应用创建和生命周期；app/api/router.py：工厂复制接口。
-2. app/dependencies/auth.py → tenant.py → permissions.py：从用户到租户角色的验证流程。
-3. app/modules/tenants/context.py：业务层使用的可信租户上下文。
-4. app/modules/tenants/service.py → repository.py：权限复核、行锁、管理员保护与租户过滤。
-5. [第06天代码讲解](day06-practice.md)与[逐行Postman测试集](day06-test-cases.md)。
+1. app/main.py：顶层@app接口、应用创建与生命周期。
+2. app/dependencies/auth.py → tenant.py → permissions.py：用户、租户与角色验证。
+3. app/modules/api_keys/security.py → models.py → schemas.py：随机凭据、摘要与公开响应边界。
+4. app/modules/api_keys/service.py与app/modules/tenants/authorization.py：管理员事务与创建/撤销。
+5. app/dependencies/api_key.py：机器身份、撤销/有效期和scope。
+6. [第07天代码讲解](day07-practice.md)与[逐行Postman测试集](day07-test-cases.md)。
 
 实现进度只在[progress.md](../progress.md)维护，本文件汇总代码职责，不另建进度体系。
