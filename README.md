@@ -2,7 +2,7 @@
 
 企业与成员、API Key、套餐订阅、用量额度、账单、模拟支付和审计。
 
-当前完成第01—08天。套餐与不可变价格版本已实现，165项回归、15项真实HTTP及管理CLI验收通过。[第08天详细学习文档](docs/day08-practice.md)从业务连接到表、函数、事务和完整流程；[第08天测试记录](docs/day08-test-cases.md)按行记录实测结果。下一步第09天订阅与周期快照。
+当前完成第01—09天。订阅原子开通、首个计费周期和不可变价格/额度快照已实现，194项回归、22项真实HTTP验收通过。[第09天详细学习文档](docs/day09-practice.md)串起业务、表、代码、事务与月末规则；[第09天测试记录](docs/day09-test-cases.md)逐行记录实测结果。下一步第10天下周期变更与取消。
 
 ## 启动
 
@@ -40,6 +40,7 @@ uv run uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 - 密钥管理：`POST/GET /v1/tenants/{tenant_id}/api-keys`，`DELETE /v1/tenants/{tenant_id}/api-keys/{key_id}`；仅本企业管理员JWT可用，完整密钥只在创建时返回。
 - 密钥验证：`GET /v1/api-keys/verify/demo-read`、`POST /v1/api-keys/verify/usage-write`；使用X-API-Key头验证对应scope，返回机器身份。
 - 公开套餐：`GET /v1/plans`、`GET /v1/plans/{plan_id}/versions`、`GET /v1/plan-versions/{version_id}`，无需登录；平台脚本说明见第08天文档。
+- 企业订阅：`POST/GET /v1/tenants/{tenant_id}/subscription`；管理员开通、成员可读，具体价格版本由请求选择，周期时间和条款由服务端确定。
 - live 反映应用存活；ready 实际检查 PostgreSQL 与 Redis，任一项未配置或不可用返回 503。
 
 用户可见的健康状态和错误提示统一使用中文，字段名与 HTTP 状态码保持原样。例如 ready 正常时返回 `{"status":"已就绪","checks":{"database":"正常","redis":"正常"}}`，live 的 `status` 为 `正常`。依赖故障返回 `未就绪`，检查项为 `不可用` 或 `未配置`；按英文状态值判断的旧脚本需同步调整。
@@ -56,7 +57,7 @@ uv run pytest
 
 ## 结构与配置
 
-`app/main.py`在模块顶层用@app定义接口；`app/api/router.py`为独立工厂复制接口。`app/core`管理配置、错误、日志与JWT安全工具，`app/db`提供模型基类、连接池与会话。`modules/auth`实现登录，`modules/tenants`实现企业与成员，`modules/api_keys`实现机器凭据，`modules/catalog`实现平台套餐与不可变价格版本；`dependencies`提供用户、租户、角色与API Key校验。当前迁移0005_catalog，本机已升级并seed两份演示套餐；其他电脑需升级数据库并初始化套餐后再测试。`deploy/compose.dev.yml`提供本机PostgreSQL与Redis，操作见 [第02天练习](docs/day02-practice.md)。
+`app/main.py`在模块顶层用@app定义接口；`app/api/router.py`为独立工厂复制接口。`app/core`管理配置、错误、日志与JWT安全工具，`app/db`提供模型基类、连接池与会话。`modules/auth`实现登录，`modules/tenants`实现企业与成员，`modules/api_keys`实现机器凭据，`modules/catalog`实现平台套餐与不可变价格版本，`modules/subscriptions`实现订阅、周期和快照；`dependencies`提供用户、租户、角色与API Key校验。当前迁移0006_subscriptions，本机已升级，既有演示套餐保留；其他电脑需升级数据库并初始化套餐后再测试。`deploy/compose.dev.yml`提供本机PostgreSQL与Redis，操作见 [第02天练习](docs/day02-practice.md)。
 
 配置变量使用 `MG_` 前缀，从本项目 `.env` 或环境读取。数据库 URL 和 JWT 密钥采用 SecretStr，禁止向日志输出原始值。`.env` 不提交 Git。
 

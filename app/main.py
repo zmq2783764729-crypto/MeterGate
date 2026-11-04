@@ -40,6 +40,9 @@ from app.modules.catalog.router import list_plans as catalog_list
 from app.modules.catalog.router import list_versions as catalog_versions
 from app.modules.catalog.router import version_detail as catalog_version
 from app.modules.catalog.schemas import PlanPage, PlanVersionPage, PlanVersionPublic
+from app.modules.subscriptions.router import activate as subscription_activate
+from app.modules.subscriptions.router import read as subscription_read
+from app.modules.subscriptions.schemas import SubscriptionActivateRequest, SubscriptionPublic
 from app.modules.tenants.router import (
     AdminTenantDependency,
     CurrentUserDependency,
@@ -348,6 +351,33 @@ async def list_plan_versions(
 )
 async def get_plan_version(version_id: UUID, session: CatalogSession) -> PlanVersionPublic:
     return await catalog_version(version_id, session)
+
+
+@app.post(
+    "/v1/tenants/{tenant_id}/subscription",
+    tags=["企业订阅"],
+    response_model=SubscriptionPublic,
+    status_code=status.HTTP_201_CREATED,
+    summary="开通订阅、首个计费周期和条款快照",
+)
+async def activate_subscription(
+    data: SubscriptionActivateRequest,
+    context: AdminTenantDependency,
+    session: TenantSessionDependency,
+) -> SubscriptionPublic:
+    return await subscription_activate(data, context, session)
+
+
+@app.get(
+    "/v1/tenants/{tenant_id}/subscription",
+    tags=["企业订阅"],
+    response_model=SubscriptionPublic,
+    summary="查询本企业订阅与开放周期条款",
+)
+async def get_subscription(
+    context: TenantContextDependency, session: TenantSessionDependency
+) -> SubscriptionPublic:
+    return await subscription_read(context, session)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
