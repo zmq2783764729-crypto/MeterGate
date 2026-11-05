@@ -41,8 +41,14 @@ from app.modules.catalog.router import list_versions as catalog_versions
 from app.modules.catalog.router import version_detail as catalog_version
 from app.modules.catalog.schemas import PlanPage, PlanVersionPage, PlanVersionPublic
 from app.modules.subscriptions.router import activate as subscription_activate
+from app.modules.subscriptions.router import cancel as subscription_cancel
 from app.modules.subscriptions.router import read as subscription_read
-from app.modules.subscriptions.schemas import SubscriptionActivateRequest, SubscriptionPublic
+from app.modules.subscriptions.router import schedule as subscription_schedule
+from app.modules.subscriptions.schemas import (
+    SubscriptionActivateRequest,
+    SubscriptionPlanChangeRequest,
+    SubscriptionPublic,
+)
 from app.modules.tenants.router import (
     AdminTenantDependency,
     CurrentUserDependency,
@@ -378,6 +384,32 @@ async def get_subscription(
     context: TenantContextDependency, session: TenantSessionDependency
 ) -> SubscriptionPublic:
     return await subscription_read(context, session)
+
+
+@app.post(
+    "/v1/tenants/{tenant_id}/subscription/plan-change",
+    tags=["企业订阅"],
+    response_model=SubscriptionPublic,
+    summary="预约下周期价格版本",
+)
+async def schedule_subscription_change(
+    data: SubscriptionPlanChangeRequest,
+    context: AdminTenantDependency,
+    session: TenantSessionDependency,
+) -> SubscriptionPublic:
+    return await subscription_schedule(data, context, session)
+
+
+@app.post(
+    "/v1/tenants/{tenant_id}/subscription/cancel",
+    tags=["企业订阅"],
+    response_model=SubscriptionPublic,
+    summary="预约本周期结束时取消",
+)
+async def cancel_subscription(
+    context: AdminTenantDependency, session: TenantSessionDependency
+) -> SubscriptionPublic:
+    return await subscription_cancel(context, session)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
