@@ -2,7 +2,7 @@
 
 企业与成员、API Key、套餐订阅、用量额度、账单、模拟支付和审计。
 
-当前完成第01—10天。订阅预约下期换套餐、周期结束取消、到期消费前置检查已实现，215项回归与38项真实HTTP验收通过。[第10天详细学习文档](docs/day10-practice.md)串起业务、字段、代码、事务与整体请求流程；[状态转换表](docs/subscription_states.md)解释边界，[逐行测试记录](docs/day10-test-cases.md)记录实测。尚未实现自动换期和实际消费；下一步第11天用量事件与额度桶。
+当前完成第01—11天。已实现用量事件表、用量请求校验与摘要、首期额度桶初始化及旧账期回填。229项自动测试与38项真实HTTP回归通过。第12天接入用量上报与幂等处理。 [第11天学习文档](docs/day11-practice.md) · [逐行验收记录](docs/day11-test-cases.md)
 
 ## 启动
 
@@ -58,7 +58,9 @@ uv run pytest
 
 ## 结构与配置
 
-`app/main.py`在模块顶层用@app定义接口；`app/api/router.py`为独立工厂复制接口。`app/core`管理配置、错误、日志与JWT安全工具，`app/db`提供模型基类、连接池与会话。`modules/auth`实现登录，`modules/tenants`实现企业与成员，`modules/api_keys`实现机器凭据，`modules/catalog`实现平台套餐与不可变价格版本，`modules/subscriptions`实现订阅、周期和快照；`dependencies`提供用户、租户、角色与API Key校验。当前迁移0007_subscription_actions，本机已升级，既有演示套餐保留；其他电脑需升级数据库并初始化套餐后再测试。`deploy/compose.dev.yml`提供本机PostgreSQL与Redis，操作见 [第02天练习](docs/day02-practice.md)。
+`app/main.py` 在模块顶层用 @app 定义接口，`app/api/router.py` 为独立工厂复制接口。`app/core` 管理配置、错误、日志与 JWT 安全工具，`app/db` 提供模型基类、连接池与会话。`modules/auth` 实现登录，`modules/tenants` 实现企业与成员，`modules/api_keys` 实现机器凭据，`modules/catalog` 实现套餐与不可变价格版本，`modules/subscriptions` 实现订阅、周期和快照，`modules/metering` 定义用量契约、事件表与额度桶。`dependencies` 提供用户、租户、角色与 API Key 校验。
+
+当前迁移为 `0008_metering`。本机已升级，其他电脑需升级数据库并初始化套餐后再测试。`deploy/compose.dev.yml` 提供本机 PostgreSQL 与 Redis。 [第02天练习](docs/day02-practice.md)
 
 配置变量使用 `MG_` 前缀，从本项目 `.env` 或环境读取。数据库 URL 和 JWT 密钥采用 SecretStr，禁止向日志输出原始值。`.env` 不提交 Git。
 

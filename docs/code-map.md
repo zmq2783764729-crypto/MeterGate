@@ -1,8 +1,8 @@
 # MeterGate代码文件用途汇总
 
-> 更新时间：2026-11-04。与每个Python文件首行用途注释对应。
+> 2026-11-09 更新。与每个 Python 文件首行用途注释对应。
 
-当前共 **96 个Python文件**。预留模块不代表已经实现。
+当前共 **101 个 Python 文件**。
 
 ## 已有实现与包入口
 
@@ -49,13 +49,17 @@
 | [app/modules/catalog/router.py](../app/modules/catalog/router.py) | 为main.py公开套餐只读接口提供会话依赖和处理函数，不提供租户管理员发布接口。 |
 | [app/modules/catalog/schemas.py](../app/modules/catalog/schemas.py) | 严格校验整数分金额和正整数额度，并定义套餐、历史版本与分页公开响应。 |
 | [app/modules/catalog/service.py](../app/modules/catalog/service.py) | 以追加方式发布价格版本，幂等初始化演示套餐，并组装公开套餐与历史版本查询。 |
+| [app/modules/metering/__init__.py](../app/modules/metering/__init__.py) | 标识用量请求契约、事件存储和额度桶模块。 |
+| [app/modules/metering/models.py](../app/modules/metering/models.py) | 定义用量事件与额度桶，并在数据库约束租户归属、事件唯一性和额度边界。 |
+| [app/modules/metering/repository.py](../app/modules/metering/repository.py) | 在调用方事务中按账期条款快照初始化用量额度桶。 |
+| [app/modules/metering/schemas.py](../app/modules/metering/schemas.py) | 校验用量请求、规范化幂等摘要并定义后续扣量结果契约。 |
 | [app/modules/subscriptions/__init__.py](../app/modules/subscriptions/__init__.py) | 标识订阅业务包，已实现开通、快照、预约与到期取消，完整周期轮转后续实现。 |
 | [app/modules/subscriptions/models.py](../app/modules/subscriptions/models.py) | 定义订阅、周期和不可变条款快照，约束套餐预约与到期取消字段及租户归属。 |
 | [app/modules/subscriptions/periods.py](../app/modules/subscriptions/periods.py) | 提供UTC时钟、保留账单日锚点的日历月边界，以及左闭右开周期归属判断。 |
 | [app/modules/subscriptions/repository.py](../app/modules/subscriptions/repository.py) | 按可信租户查询、锁定和写入订阅周期及条款，数据写入仅flush而不提交。 |
 | [app/modules/subscriptions/router.py](../app/modules/subscriptions/router.py) | 为main.py提供订阅开通、预约、取消和读取处理，复用可信租户与管理员依赖。 |
 | [app/modules/subscriptions/schemas.py](../app/modules/subscriptions/schemas.py) | 限定订阅开通与预约请求字段，定义含周期快照、预约取消和消费前置状态的响应。 |
-| [app/modules/subscriptions/service.py](../app/modules/subscriptions/service.py) | 事务化开通、预约套餐与到期取消，读取时结算到期取消，并提供消费前置校验。 |
+| [app/modules/subscriptions/service.py](../app/modules/subscriptions/service.py) | 事务化开通订阅与首期额度桶，处理套餐预约、到期取消和消费前置校验。 |
 | [app/modules/subscriptions/transitions.py](../app/modules/subscriptions/transitions.py) | 集中定义订阅允许的预约动作和消费时间判断，阻止取消后复活及跨周期消费。 |
 | [app/modules/tenants/__init__.py](../app/modules/tenants/__init__.py) | 标识企业业务包，提供企业创建、租户上下文、成员管理和管理员保护。 |
 | [app/modules/tenants/authorization.py](../app/modules/tenants/authorization.py) | 为企业管理写事务锁定企业行，并复核操作者当前数据库中的管理员身份。 |
@@ -73,6 +77,7 @@
 | [migrations/versions/0005_catalog_create_plans_and_immutable_versions.py](../migrations/versions/0005_catalog_create_plans_and_immutable_versions.py) | 创建套餐和价格版本表，并以数据库触发器禁止修改、删除或清空历史版本。 |
 | [migrations/versions/0006_subscriptions_create_subscriptions_periods_and_terms.py](../migrations/versions/0006_subscriptions_create_subscriptions_periods_and_terms.py) | 创建企业订阅、计费周期和不可变条款快照，保护企业唯一订阅与单个开放周期。 |
 | [migrations/versions/0007_subscription_actions_add_scheduled_subscription_actions.py](../migrations/versions/0007_subscription_actions_add_scheduled_subscription_actions.py) | 增加订阅预约与到期取消字段，并约束预约字段完整性和取消优先规则。 |
+| [migrations/versions/0008_metering_add_usage_events_and_quota_buckets.py](../migrations/versions/0008_metering_add_usage_events_and_quota_buckets.py) | 创建用量事件与额度桶，并用已有账期快照回填期初额度。 |
 | [scripts/__init__.py](../scripts/__init__.py) | 标识本机平台维护脚本包，脚本通过项目解释器运行，不作为HTTP接口开放。 |
 | [scripts/seed_catalog.py](../scripts/seed_catalog.py) | 幂等初始化基础与专业套餐，或通过平台本机命令追加新价格版本，拒绝非法金额和额度。 |
 | [tests/test_api_key_contract.py](../tests/test_api_key_contract.py) | 验证API Key生成解析、输入边界与畸形密钥在查库前得到401。 |
@@ -91,10 +96,11 @@
 | [tests/test_response_language.py](../tests/test_response_language.py) | 验证中文健康状态、接口说明和错误提示，并确保参数与内部异常不泄露到响应。 |
 | [tests/test_subscription_actions_database.py](../tests/test_subscription_actions_database.py) | 在专属数据库验证订阅预约、到期取消、消费阻止、幂等与并发状态迁移。 |
 | [tests/test_subscription_contract.py](../tests/test_subscription_contract.py) | 验证UTC日历月、闰年月末和左闭右开边界，以及开通请求禁止伪造时间与价格。 |
-| [tests/test_subscription_database.py](../tests/test_subscription_database.py) | 在专属PostgreSQL库验证订阅原子开通、并发去重、快照不变、月末及跨租户授权。 |
+| [tests/test_subscription_database.py](../tests/test_subscription_database.py) | 验证订阅原子开通、周期快照、额度桶初始化和用量事件租户隔离。 |
 | [tests/test_tenant_contract.py](../tests/test_tenant_contract.py) | 验证企业名称与额外字段校验，以及企业接口在缺少有效身份时返回统一401错误。 |
 | [tests/test_tenant_database.py](../tests/test_tenant_database.py) | 在专属PostgreSQL库验证企业管理员创建、用户隔离、游标分页、失败回滚及真实成员约束。 |
 | [tests/unit/test_subscription_transitions.py](../tests/unit/test_subscription_transitions.py) | 验证订阅预约状态迁移与消费边界，覆盖取消标记、已取消和周期结束时刻。 |
+| [tests/unit/test_usage_contract.py](../tests/unit/test_usage_contract.py) | 验收用量字段边界、UTC 归一化和幂等请求摘要。 |
 
 ## 尚未实现的预留模块
 
@@ -105,17 +111,16 @@
 | [app/modules/audit/__init__.py](../app/modules/audit/__init__.py) | 预留关键业务操作的审计记录和审计查询模块，尚未实现。 |
 | [app/modules/billing/__init__.py](../app/modules/billing/__init__.py) | 预留周期计价、账单生成、账单查询和对账业务模块，尚未实现。 |
 | [app/modules/demo/__init__.py](../app/modules/demo/__init__.py) | 预留服务端计量的数据查询演示接口及结果重放业务模块，尚未实现。 |
-| [app/modules/metering/__init__.py](../app/modules/metering/__init__.py) | 预留用量事件、幂等接收、并发额度扣减和用量查询业务模块，尚未实现。 |
 | [app/modules/payments/__init__.py](../app/modules/payments/__init__.py) | 预留支付会话、回调验签、回调幂等和账单付款状态业务模块，尚未实现。 |
 | [app/observability/__init__.py](../app/observability/__init__.py) | 预留运行指标及其他可观测性功能包，尚未实现。 |
 | [app/workers/__init__.py](../app/workers/__init__.py) | 预留后台任务、消息代理和事务 Outbox 执行包，尚未实现。 |
 
-## 第10天阅读路线
+## 第11天阅读路线
 
-1. app/main.py两个操作接口 → subscriptions/router.py依赖 → service.py事务。
-2. subscriptions/models.py与schemas.py：六个持久化字段、动态can_consume和请求约束。
-3. subscriptions/transitions.py与repository.py：状态时间规则及租户行锁。
-4. 0007_subscription_actions迁移、tests/unit/test_subscription_transitions.py及test_subscription_actions_database.py。
-5. [详细学习文档](day10-practice.md)、[状态转换表](subscription_states.md)与[逐行实测记录](day10-test-cases.md)。
+1. metering/schemas.py 的请求校验和摘要。
+2. metering/models.py 的事件唯一键、组合外键和额度约束。
+3. subscriptions/service.py 开通事务调用 metering/repository.py 初始化额度桶。
+4. 0008_metering 迁移从旧账期条款快照回填额度。
+5. [学习文档](day11-practice.md) · [逐行实测记录](day11-test-cases.md)
 
 唯一进度记录为[progress.md](../progress.md)，本文件只汇总代码职责。
