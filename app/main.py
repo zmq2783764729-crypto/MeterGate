@@ -56,6 +56,7 @@ from app.modules.metering.schemas import (
     UsageResult,
     UsageSummary,
 )
+from app.modules.payments.service import CheckoutResult, create_checkout, payment_provider
 from app.modules.subscriptions.router import activate as subscription_activate
 from app.modules.subscriptions.router import cancel as subscription_cancel
 from app.modules.subscriptions.router import read as subscription_read
@@ -496,6 +497,22 @@ async def get_invoice(
     session: TenantSessionDependency,
 ) -> InvoiceDetail:
     return await invoice_detail(session, context.tenant_id, invoice_id)
+
+
+@app.post(
+    "/v1/tenants/{tenant_id}/invoices/{invoice_id}/checkout",
+    tags=["模拟支付"],
+    summary="创建模拟支付会话",
+)
+async def checkout_invoice(
+    invoice_id: UUID,
+    request: Request,
+    context: AdminTenantDependency,
+    session: TenantSessionDependency,
+) -> CheckoutResult:
+    return await create_checkout(
+        session, context, invoice_id, payment_provider(request.app.state.settings)
+    )
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:

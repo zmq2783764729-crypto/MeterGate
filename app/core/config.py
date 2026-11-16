@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     rate_limit_requests: int = Field(default=0, ge=0, le=100_000)
     rate_limit_window_seconds: int = Field(default=60, ge=1, le=3600)
     jwt_secret: SecretStr | None = None
+    mock_webhook_secret: SecretStr | None = Field(default=None, min_length=32)
     jwt_issuer: str = Field(default="metergate", min_length=1)
     jwt_audience: str = Field(default="metergate-api", min_length=1)
     access_token_minutes: int = Field(default=15, ge=1, le=60)
