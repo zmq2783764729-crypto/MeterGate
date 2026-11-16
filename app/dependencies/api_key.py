@@ -28,18 +28,20 @@ async def authenticate_api_key(
     material: Annotated[ApiKeyMaterial, Depends(get_api_key_material)],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> ApiKeyContext:
-    key = await get_auth_key(session, material.key_id)
-    if key is None or not hmac.compare_digest(key.token_digest, material.token_digest):
-        raise invalid_api_key()
-    if key.revoked_at is not None or (
-        key.expires_at is not None and key.expires_at <= datetime.now(UTC)
-    ):
-        raise invalid_api_key()
-    return ApiKeyContext(
-        key_id=key.id,
-        tenant_id=key.tenant_id,
-        scopes=frozenset(ApiKeyScope(scope) for scope in key.scopes),
-    )
+    async with session.begin():
+        key = await get_auth_key(session, material.key_id)
+        if key is None or not hmac.compare_digest(key.token_digest, material.token_digest):
+            raise invalid_api_key()
+        if key.revoked_at is not None or (
+            key.expires_at is not None and key.expires_at <= datetime.now(UTC)
+        ):
+            raise invalid_api_key()
+        # 先归还认证连接，再让端点获取业务会话的连接。
+        return ApiKeyContext(
+            key_id=key.id,
+            tenant_id=key.tenant_id,
+            scopes=frozenset(ApiKeyScope(scope) for scope in key.scopes),
+        )
 
 
 def require_api_key_scope(scope: ApiKeyScope) -> Callable[..., ApiKeyContext]:

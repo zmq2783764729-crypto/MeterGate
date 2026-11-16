@@ -42,8 +42,16 @@ from app.modules.catalog.router import version_detail as catalog_version
 from app.modules.catalog.schemas import PlanPage, PlanVersionPage, PlanVersionPublic
 from app.modules.demo.schemas import DataQuery, DataQueryResult
 from app.modules.demo.service import query_data
+from app.modules.metering.queries import usage_events, usage_summary
 from app.modules.metering.router import submit_usage
-from app.modules.metering.schemas import UsageIn, UsageResult
+from app.modules.metering.schemas import (
+    UsageEventPage,
+    UsageIn,
+    UsageListQuery,
+    UsageMetric,
+    UsageResult,
+    UsageSummary,
+)
 from app.modules.subscriptions.router import activate as subscription_activate
 from app.modules.subscriptions.router import cancel as subscription_cancel
 from app.modules.subscriptions.router import read as subscription_read
@@ -436,6 +444,25 @@ async def demo_data_query(
     key: Annotated[UUID, Header(alias="Idempotency-Key")],
 ) -> DataQueryResult:
     return await query_data(session, context, key, data)
+
+
+@app.get("/v1/tenants/{tenant_id}/usage/summary", tags=["用量计量"], summary="查询企业用量摘要")
+async def get_usage_summary(
+    context: TenantContextDependency,
+    session: TenantSessionDependency,
+    period_id: UUID | None = None,
+    metric: UsageMetric = "data_query",
+) -> UsageSummary:
+    return await usage_summary(session, context.tenant_id, period_id, metric)
+
+
+@app.get("/v1/tenants/{tenant_id}/usage/events", tags=["用量计量"], summary="分页查询企业用量事件")
+async def list_usage_events(
+    context: TenantContextDependency,
+    session: TenantSessionDependency,
+    query: Annotated[UsageListQuery, Query()],
+) -> UsageEventPage:
+    return await usage_events(session, context.tenant_id, query)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
