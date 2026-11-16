@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MeterGate 管理台</title>
+<style>
+  body { margin: 0; background: #f3f5f7; color: #202938; font: 1rem system-ui, sans-serif; }
+  main { max-width: 68rem; padding: 2rem 1rem; margin: auto; }
+  form, section { padding: 1rem; background: white; border: 1px solid #d7dce3; border-radius: .6rem; }
+  form, .panels { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit,minmax(17rem,1fr)); }
+  label, input { display: block; width: 100%; box-sizing: border-box; }
+  input, button, select { margin-top: .4rem; padding: .55rem; font: inherit; }
+  button { align-self: end; color: white; background: #174f80; border: 0; border-radius: .35rem; cursor: pointer; }
+  pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .85rem; }
+  h2 { margin-top: 0; font-size: 1.05rem; }
+</style>
+<main>
+  <h1>MeterGate 管理台</h1>
+  <form id="credentials" autocomplete="off">
+    <label>访问令牌<input id="token" type="password" required></label>
+    <button type="submit">加载企业</button>
+    <label>企业<select id="tenant" disabled aria-label="选择企业"></select></label>
+  </form>
+  <p id="status" role="status"></p>
+  <div class="panels">
+    <section><h2>订阅</h2><pre id="subscription"></pre></section>
+    <section><h2>本期额度</h2><pre id="usage"></pre></section>
+    <section><h2>账单</h2><pre id="invoices"></pre></section>
+    <section><h2>审计</h2><pre id="audit"></pre></section>
+  </div>
+</main>
+<script src="/dashboard.js" defer></script>
+</html>

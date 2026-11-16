@@ -1,0 +1,108 @@
+name: metergate
+
+x-runtime: &runtime
+  build:
+    context: ..
+    dockerfile: deploy/Dockerfile
+  image: metergate-app:local
+  read_only: true
+  tmpfs: ["/tmp:rw,noexec,nosuid"]
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  environment:
+    MG_DATABASE_URL: ${MG_DATABASE_URL:?set MG_DATABASE_URL}
+    MG_REDIS_URL: redis://redis:6379/0
+    MG_ENVIRONMENT: ${MG_ENVIRONMENT:-production}
+    MG_JWT_SECRET: ${MG_JWT_SECRET:?set MG_JWT_SECRET}
+    MG_MOCK_WEBHOOK_SECRET: ${MG_MOCK_WEBHOOK_SECRET:-}
+    MG_METRICS_TOKEN: ${MG_METRICS_TOKEN:-}
+    MG_RATE_LIMIT_REQUESTS: ${MG_RATE_LIMIT_REQUESTS:-120}
+  networks: [backend]
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: metergate
+      POSTGRES_USER: metergate
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes: ["postgres_data:/var/lib/postgresql/data"]
+    networks: [backend]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "metergate", "-d", "metergate"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes: ["redis_data:/data"]
+    networks: [backend]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  migrate:
+    <<: *runtime
+    profiles: ["tools"]
+    command: ["python", "-m", "alembic", "upgrade", "head"]
+
+  api:
+    <<: *runtime
+    networks: [backend, frontend]
+    ports: ["127.0.0.1:${METERGATE_PORT:-8000}:8000"]
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "from urllib.request import urlopen; urlopen('http://127.0.0.1:8000/health/ready', timeout=3)"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  worker:
+    <<: *runtime
+    command: ["python", "-m", "dramatiq", "app.workers.tasks:broker", "--processes", "1"]
+    restart: unless-stopped
+
+  outbox:
+    <<: *runtime
+    command: ["python", "-m", "app.workers.dispatch"]
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    profiles: ["monitoring"]
+    networks: [backend]
+    secrets: [metrics_token]
+    volumes:
+      - "./prometheus.yml:/etc/prometheus/prometheus.yml:ro"
+      - "./metergate.rules.yml:/etc/prometheus/metergate.rules.yml:ro"
+      - "prometheus_data:/prometheus"
+    restart: unless-stopped
+
+networks:
+  backend:
+    internal: true
+  frontend:
+
+secrets:
+  metrics_token:
+    environment: MG_METRICS_TOKEN
+
+volumes:
+  postgres_data:
+  redis_data:
+  prometheus_data:

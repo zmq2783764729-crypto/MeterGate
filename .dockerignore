@@ -1,0 +1,16 @@
+*
+!app/
+!app/**
+!migrations/
+!migrations/**
+!scripts/
+!scripts/**
+!deploy/
+!deploy/Dockerfile
+!deploy/Dockerfile.worker
+!alembic.ini
+!pyproject.toml
+!uv.lock
+!README.md
+**/__pycache__
+**/*.pyc

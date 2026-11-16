@@ -44,6 +44,7 @@ from app.modules.catalog.router import list_plans as catalog_list
 from app.modules.catalog.router import list_versions as catalog_versions
 from app.modules.catalog.router import version_detail as catalog_version
 from app.modules.catalog.schemas import PlanPage, PlanVersionPage, PlanVersionPublic
+from app.modules.demo.dashboard import dashboard_page, dashboard_script
 from app.modules.demo.schemas import DataQuery, DataQueryResult
 from app.modules.demo.service import query_data
 from app.modules.metering.queries import usage_events, usage_summary
@@ -537,6 +538,16 @@ async def mock_payment_webhook(
 @app.get("/metrics", include_in_schema=False)
 async def metrics(request: Request) -> Response:
     return await render_metrics(request)
+
+
+@app.get("/dashboard", include_in_schema=False)
+async def dashboard() -> Response:
+    return dashboard_page()
+
+
+@app.get("/dashboard.js", include_in_schema=False)
+async def dashboard_assets() -> Response:
+    return dashboard_script()
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
