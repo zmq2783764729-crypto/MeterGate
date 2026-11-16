@@ -37,6 +37,8 @@ from app.modules.auth.router import SessionDependency, SettingsDependency
 from app.modules.auth.router import login as auth_login
 from app.modules.auth.router import register as auth_register
 from app.modules.auth.schemas import LoginRequest, RegisterRequest, TokenResponse, UserPublic
+from app.modules.billing.schemas import InvoiceDetail, InvoicePage
+from app.modules.billing.service import invoice_detail, list_invoices
 from app.modules.catalog.router import CatalogSession
 from app.modules.catalog.router import list_plans as catalog_list
 from app.modules.catalog.router import list_versions as catalog_versions
@@ -475,6 +477,25 @@ async def list_tenant_audit(
     cursor: UUID | None = None,
 ) -> AuditPage:
     return await list_audit(session, context, limit, cursor)
+
+
+@app.get("/v1/tenants/{tenant_id}/invoices", tags=["账单"], summary="分页查询企业账单")
+async def get_invoices(
+    context: TenantContextDependency,
+    session: TenantSessionDependency,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    cursor: UUID | None = None,
+) -> InvoicePage:
+    return await list_invoices(session, context.tenant_id, limit, cursor)
+
+
+@app.get("/v1/tenants/{tenant_id}/invoices/{invoice_id}", tags=["账单"], summary="读取账单明细")
+async def get_invoice(
+    invoice_id: UUID,
+    context: TenantContextDependency,
+    session: TenantSessionDependency,
+) -> InvoiceDetail:
+    return await invoice_detail(session, context.tenant_id, invoice_id)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:

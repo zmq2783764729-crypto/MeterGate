@@ -9,7 +9,8 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
 from app.modules.billing.events import PERIOD_CLOSED
-from app.modules.billing.models import SettlementInput
+from app.modules.billing.models import Invoice, SettlementInput
+from app.modules.billing.service import generate_invoice
 from app.modules.metering.models import UsageEvent
 from app.modules.subscriptions.models import BillingPeriod
 from app.workers.broker import broker, settings
@@ -33,8 +34,8 @@ def record_delivery_failure(message: dict, retry_data: dict) -> None:
             update(OutboxEvent)
             .where(
                 OutboxEvent.id == event_id,
-                ~select(SettlementInput.period_id)
-                .where(SettlementInput.event_id == event_id)
+                ~select(Invoice.period_id)
+                .where(Invoice.period_id == OutboxEvent.aggregate_id)
                 .exists(),
             )
             .values(
@@ -59,8 +60,6 @@ def process_domain_event(event_id: str) -> None:
             raise RuntimeError("领域事件不存在")
         if event.topic != PERIOD_CLOSED:
             raise RuntimeError("领域事件类型不受支持")
-        if session.get(SettlementInput, event.aggregate_id) is not None:
-            return
         period = session.get(BillingPeriod, event.aggregate_id)
         if (
             period is None
@@ -78,5 +77,6 @@ def process_domain_event(event_id: str) -> None:
             .values(period_id=period.id, event_id=event.id, total_quantity=int(total))
             .on_conflict_do_nothing(index_elements=[SettlementInput.period_id])
         )
+        generate_invoice(session, period.id)
         event.failed_at = None
         event.last_error = None
