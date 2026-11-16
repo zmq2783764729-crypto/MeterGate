@@ -56,6 +56,7 @@ class UsageEvent(Base):
             f"quantity BETWEEN 1 AND {MAX_USAGE_QUANTITY}", name="ck_usage_events_quantity"
         ),
         Index("ix_usage_events_tenant_period_received", "tenant_id", "period_id", "received_at"),
+        Index("ix_usage_events_tenant_timeline", "tenant_id", "received_at", "id"),
     )
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
     tenant_id: Mapped[UUID] = mapped_column(Uuid, nullable=False)
