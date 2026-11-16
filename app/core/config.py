@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     database_url: SecretStr | None = None
     redis_url: SecretStr | None = None
+    rate_limit_requests: int = Field(default=0, ge=0, le=100_000)
+    rate_limit_window_seconds: int = Field(default=60, ge=1, le=3600)
     jwt_secret: SecretStr | None = None
     jwt_issuer: str = Field(default="metergate", min_length=1)
     jwt_audience: str = Field(default="metergate-api", min_length=1)

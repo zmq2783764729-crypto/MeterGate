@@ -20,6 +20,7 @@ from app.core.logging import configure_logging
 from app.db.session import create_db_engine, create_session_factory
 from app.dependencies.auth import get_current_user
 from app.middleware.request_context import RequestContextMiddleware
+from app.modules.api_keys.rate_limit import LimitedDemoKey, LimitedUsageKey
 from app.modules.api_keys.router import DemoReadKeyDependency, UsageWriteKeyDependency, key_identity
 from app.modules.api_keys.router import create_key as api_key_create
 from app.modules.api_keys.router import list_keys as api_key_list
@@ -426,7 +427,7 @@ async def cancel_subscription(
 
 @app.post("/v1/usage/events", tags=["用量计量"], summary="上报用量事件", response_model=UsageResult)
 async def ingest_usage_event(
-    data: UsageIn, context: UsageWriteKeyDependency, session: TenantSessionDependency
+    data: UsageIn, context: LimitedUsageKey, session: TenantSessionDependency
 ) -> UsageResult:
     return await submit_usage(data, context, session)
 
@@ -439,7 +440,7 @@ async def ingest_usage_event(
 )
 async def demo_data_query(
     data: DataQuery,
-    context: DemoReadKeyDependency,
+    context: LimitedDemoKey,
     session: TenantSessionDependency,
     key: Annotated[UUID, Header(alias="Idempotency-Key")],
 ) -> DataQueryResult:
