@@ -4,7 +4,7 @@ from contextlib import AsyncExitStack, asynccontextmanager
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, FastAPI, Query, Request, Response, status
+from fastapi import Depends, FastAPI, Header, Query, Request, Response, status
 from fastapi.exceptions import RequestValidationError
 from redis.asyncio import Redis
 from starlette.exceptions import HTTPException
@@ -40,6 +40,8 @@ from app.modules.catalog.router import list_plans as catalog_list
 from app.modules.catalog.router import list_versions as catalog_versions
 from app.modules.catalog.router import version_detail as catalog_version
 from app.modules.catalog.schemas import PlanPage, PlanVersionPage, PlanVersionPublic
+from app.modules.demo.schemas import DataQuery, DataQueryResult
+from app.modules.demo.service import query_data
 from app.modules.metering.router import submit_usage
 from app.modules.metering.schemas import UsageIn, UsageResult
 from app.modules.subscriptions.router import activate as subscription_activate
@@ -419,6 +421,21 @@ async def ingest_usage_event(
     data: UsageIn, context: UsageWriteKeyDependency, session: TenantSessionDependency
 ) -> UsageResult:
     return await submit_usage(data, context, session)
+
+
+@app.post(
+    "/v1/demo/data-query",
+    tags=["用量计量"],
+    summary="查询套餐并计量",
+    response_model=DataQueryResult,
+)
+async def demo_data_query(
+    data: DataQuery,
+    context: DemoReadKeyDependency,
+    session: TenantSessionDependency,
+    key: Annotated[UUID, Header(alias="Idempotency-Key")],
+) -> DataQueryResult:
+    return await query_data(session, context, key, data)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
