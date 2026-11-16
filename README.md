@@ -2,7 +2,7 @@
 
 企业与成员、API Key、套餐订阅、用量额度、账单、模拟支付和审计。
 
-当前完成第01—11天。已实现用量事件表、用量请求校验与摘要、首期额度桶初始化及旧账期回填。229项自动测试与38项真实HTTP回归通过。第12天接入用量上报与幂等处理。 [第11天学习文档](docs/day11-practice.md) · [逐行验收记录](docs/day11-test-cases.md)
+当前完成第01—12天。已实现用量上报、事务内扣量和幂等重试。231 项自动测试与 58 项真实 HTTP 检查通过。 [第12天学习文档](docs/day12-practice.md) · [Postman 逐行验收](docs/day12-test-cases.md)
 
 ## 启动
 
@@ -41,6 +41,7 @@ uv run uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 - 密钥验证：`GET /v1/api-keys/verify/demo-read`、`POST /v1/api-keys/verify/usage-write`；使用X-API-Key头验证对应scope，返回机器身份。
 - 公开套餐：`GET /v1/plans`、`GET /v1/plans/{plan_id}/versions`、`GET /v1/plan-versions/{version_id}`，无需登录；平台脚本说明见第08天文档。
 - 企业订阅：`POST/GET /v1/tenants/{tenant_id}/subscription`；管理员开通、成员可读，具体价格版本由请求选择，周期时间和条款由服务端确定。
+- `POST /v1/usage/events` 接收用量事件，要求具备 `usage:write` 的 `X-API-Key`。同一事件重试返回首次扣量结果，沿用编号修改载荷返回 409。
 - 预约换套餐：`POST /v1/tenants/{tenant_id}/subscription/plan-change`，Body选择目标plan_version_id；预约取消：`POST /v1/tenants/{tenant_id}/subscription/cancel`，无需Body；均只允许本企业管理员。预约不改本期条款，取消在本期end生效。GET订阅会将已到期取消落库；自动新周期轮转尚未实现。
 - live 反映应用存活；ready 实际检查 PostgreSQL 与 Redis，任一项未配置或不可用返回 503。
 

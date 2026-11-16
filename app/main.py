@@ -40,6 +40,8 @@ from app.modules.catalog.router import list_plans as catalog_list
 from app.modules.catalog.router import list_versions as catalog_versions
 from app.modules.catalog.router import version_detail as catalog_version
 from app.modules.catalog.schemas import PlanPage, PlanVersionPage, PlanVersionPublic
+from app.modules.metering.router import submit_usage
+from app.modules.metering.schemas import UsageIn, UsageResult
 from app.modules.subscriptions.router import activate as subscription_activate
 from app.modules.subscriptions.router import cancel as subscription_cancel
 from app.modules.subscriptions.router import read as subscription_read
@@ -410,6 +412,13 @@ async def cancel_subscription(
     context: AdminTenantDependency, session: TenantSessionDependency
 ) -> SubscriptionPublic:
     return await subscription_cancel(context, session)
+
+
+@app.post("/v1/usage/events", tags=["用量计量"], summary="上报用量事件", response_model=UsageResult)
+async def ingest_usage_event(
+    data: UsageIn, context: UsageWriteKeyDependency, session: TenantSessionDependency
+) -> UsageResult:
+    return await submit_usage(data, context, session)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:

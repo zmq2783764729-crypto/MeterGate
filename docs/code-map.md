@@ -1,8 +1,8 @@
 # MeterGate代码文件用途汇总
 
-> 2026-11-09 更新。与每个 Python 文件首行用途注释对应。
+> 2026-11-11 更新。与每个 Python 文件首行用途注释对应。
 
-当前共 **101 个 Python 文件**。
+当前共 **104 个 Python 文件**。
 
 ## 已有实现与包入口
 
@@ -51,8 +51,10 @@
 | [app/modules/catalog/service.py](../app/modules/catalog/service.py) | 以追加方式发布价格版本，幂等初始化演示套餐，并组装公开套餐与历史版本查询。 |
 | [app/modules/metering/__init__.py](../app/modules/metering/__init__.py) | 标识用量请求契约、事件存储和额度桶模块。 |
 | [app/modules/metering/models.py](../app/modules/metering/models.py) | 定义用量事件与额度桶，并在数据库约束租户归属、事件唯一性和额度边界。 |
-| [app/modules/metering/repository.py](../app/modules/metering/repository.py) | 在调用方事务中按账期条款快照初始化用量额度桶。 |
+| [app/modules/metering/repository.py](../app/modules/metering/repository.py) | 初始化与锁定额度桶，按企业和事件编号查询幂等记录。 |
+| [app/modules/metering/router.py](../app/modules/metering/router.py) | 用具备 usage:write 的 API Key 上下文和独立数据库会话接收用量事件。 |
 | [app/modules/metering/schemas.py](../app/modules/metering/schemas.py) | 校验用量请求、规范化幂等摘要并定义后续扣量结果契约。 |
+| [app/modules/metering/service.py](../app/modules/metering/service.py) | 在同一事务内扣减额度并保存用量事件，按原结果快照处理重试。 |
 | [app/modules/subscriptions/__init__.py](../app/modules/subscriptions/__init__.py) | 标识订阅业务包，已实现开通、快照、预约与到期取消，完整周期轮转后续实现。 |
 | [app/modules/subscriptions/models.py](../app/modules/subscriptions/models.py) | 定义订阅、周期和不可变条款快照，约束套餐预约与到期取消字段及租户归属。 |
 | [app/modules/subscriptions/periods.py](../app/modules/subscriptions/periods.py) | 提供UTC时钟、保留账单日锚点的日历月边界，以及左闭右开周期归属判断。 |
@@ -101,6 +103,7 @@
 | [tests/test_tenant_database.py](../tests/test_tenant_database.py) | 在专属PostgreSQL库验证企业管理员创建、用户隔离、游标分页、失败回滚及真实成员约束。 |
 | [tests/unit/test_subscription_transitions.py](../tests/unit/test_subscription_transitions.py) | 验证订阅预约状态迁移与消费边界，覆盖取消标记、已取消和周期结束时刻。 |
 | [tests/unit/test_usage_contract.py](../tests/unit/test_usage_contract.py) | 验收用量字段边界、UTC 归一化和幂等请求摘要。 |
+| [tests/integration/test_usage_idempotency.py](../tests/integration/test_usage_idempotency.py) | 验证用量上报的幂等结果、租户隔离、额度边界与数据库冲突回滚。 |
 
 ## 尚未实现的预留模块
 
@@ -115,12 +118,11 @@
 | [app/observability/__init__.py](../app/observability/__init__.py) | 预留运行指标及其他可观测性功能包，尚未实现。 |
 | [app/workers/__init__.py](../app/workers/__init__.py) | 预留后台任务、消息代理和事务 Outbox 执行包，尚未实现。 |
 
-## 第11天阅读路线
+## 第12天阅读路线
 
-1. metering/schemas.py 的请求校验和摘要。
-2. metering/models.py 的事件唯一键、组合外键和额度约束。
-3. subscriptions/service.py 开通事务调用 metering/repository.py 初始化额度桶。
-4. 0008_metering 迁移从旧账期条款快照回填额度。
-5. [学习文档](day11-practice.md) · [逐行实测记录](day11-test-cases.md)
+1. main.py 的用量接口与 metering/router.py 的权限依赖。
+2. metering/service.py 的账期检查、额度事务和结果重放。
+3. metering/repository.py 的事件查询与额度桶行锁。
+4. [学习文档](day12-practice.md) · [Postman 逐行验收](day12-test-cases.md)
 
 唯一进度记录为[progress.md](../progress.md)，本文件只汇总代码职责。

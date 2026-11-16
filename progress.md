@@ -1,6 +1,6 @@
 # MeterGate｜进度与交接
 
-> 2026-11-09（Asia/Shanghai）更新。开发完成 11 / 30。第11天用量事件、请求契约和额度桶已验收，下一步第12天。
+> 2026-11-11（Asia/Shanghai）更新。开发完成 12 / 30。用量上报与幂等重试已验收，下一步第13天。
 > 本文件是本仓库唯一的进度记录；计划见 [docs/plan.md](docs/plan.md)。
 
 ## 接续规则
@@ -40,11 +40,10 @@
 
 ### 当前进度
 
-- 已完成第01—11天，包括订阅生命周期、用量请求与摘要、事件存储、额度桶初始化。
-- 第11天资料见 [学习文档](docs/day11-practice.md) 和 [逐行验收](docs/day11-test-cases.md)。下一步接入用量事件接口。
+- 已完成第01—12天，包括订阅生命周期、额度桶初始化、用量上报、扣量和幂等重试。 [第12天学习文档](docs/day12-practice.md) · [Postman 逐行验收](docs/day12-test-cases.md)
 - 关键文件：`pyproject.toml`、`uv.lock`、`.python-version`、`.env.example`、`app/main.py`、`app/core/config.py`、`app/api/{router,health}.py`、`tests/test_app.py`、`docs/scope.md`、`README.md`。
 - 已实现：`Settings`、`create_app()`、连接资源 `lifespan()`、`GET /health/live` 与 `/health/ready`；Base、async_sessionmaker、get_session。配置用 MG_ 前缀，连接地址/密钥使用 SecretStr；service 显式决定事务提交，Session 不自动提交。
-- 最近一次完整测试（2026-11-09）为 **229 passed，0跳过，0失败**，另有38项真实HTTP回归通过。验收服务与专属临时库已清理。
+- 最近一次完整测试（2026-11-11）为 **231 passed，0跳过，0失败**，另有 58 项真实 HTTP 检查通过。验收服务与专属临时库已清理。
 - 最新真实连接验证：独立 Session、SELECT 1、会话退出回滚未提交事务、归还连接、lifespan 关闭 PostgreSQL/Redis 连接通过；使用独立测试库，未修改用户 .env 或开发库。
 - 实际故障验证：用户停止 PostgreSQL，live=200、ready=503；恢复后无需重启应用，ready=200。截图证据通过，助手最后读取当前 8000 端口 live/ready 均为 200。
 - 迁移：alembic.ini、migrations/env.py、版本文件模板已配置；0001_baseline 执行成功，数据库 alembic_version.version_num 为 0001_baseline。此版本 upgrade/downgrade 为空操作，仅建立迁移基线，不代表业务表已创建。
@@ -93,15 +92,21 @@
 - 第10天并发：管理写入锁企业→订阅→周期并复核管理员；消费校验要求调用方持有事务，锁订阅→周期，不自行提交。并发换套餐与取消最终取消优先。can_consume仅是订阅/时间前置条件，不包含scope、额度或完整业务授权。
 - 第10天迁移：开发库已向前升级0007_subscription_actions，check无差异；专属临时库空库升级、重复升级、回退0006再升级均通过。仅增加六列、外键和三个CHECK，未操作现有企业的套餐、预约或取消。原开发容器停止，本次启动现有容器并等待healthy，没有删除卷。
 - 第10天验证：新增12项纯函数与9项数据库测试，总215通过；38项真实HTTP通过；日志无演示敏感值，临时库和验收服务已清理。首轮旧测试前缀白名单不完整导致21项拒绝临时库，补齐第10天专属前缀后全量通过，开发库保护保留。
-- 待实现用量接收与扣量、新周期轮转、pending 实际应用和账单。旧周期过期且未轮转时 can_consume=false，预约变更返回 409 PERIOD_ENDED。
+- 待实现扣量并发验收、新周期轮转、pending 实际应用和账单。旧周期过期且未轮转时 can_consume=false，预约变更返回 409 PERIOD_ENDED。
 
-### 下一步｜第12天事件接收与幂等结果
+### 下一步｜第13天并发扣减与事务回滚
 
-1. 在 main.py 顶层注册 `POST /v1/usage/events`，用 API Key 获取企业并校验 `usage:write`。
-2. 实现 `ingest_usage()`，按接收时间匹配周期。复用订阅事务内消费前置校验，将事件写入与额度更新放在同一事务。
-3. 验证同载荷重试返回原快照且只扣一次，同编号不同载荷返回 409。加入详细学习文档和 Markdown 逐行用例。
+1. 使用带上限条件的 UPDATE 和 RETURNING 实现原子扣量，保持订阅、账期、额度桶的加锁顺序。
+2. 以额度 100 和 200 个不同事件编号验证恰有 100 次成功，并覆盖并发重复键、失败回滚和原结果重放。
 
 ## 最近记录
+
+### 2026-11-11｜第12天事件接收与幂等结果
+
+- 新增 `POST /v1/usage/events`，以 `usage:write` API Key 确定企业。新事件按服务器接收时间归属账期，行锁内检查额度并扣量，同一事务写入用量和响应快照。
+- 同编号同载荷返回原响应并标记重放，载荷冲突返回 409。保存点处理数据库唯一键冲突，回滚尝试扣量后读取原记录。账期结束后允许对已提交事件重放。
+- 隔离库全量 231 项通过，真实 HTTP 第12天 20 项及第10天回归 38 项通过。本日沿用 `0008_metering`。
+- 用户报告第11天已推送，本地 HEAD 为 `4d6de09`。本地仍有前序业务文件未被 Git 跟踪，第12天变更保留在工作区。
 
 ### 2026-11-09｜第11天用量事件和额度桶
 
