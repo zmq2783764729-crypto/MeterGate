@@ -1,0 +1,61 @@
+name: MeterGate CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: metergate
+          POSTGRES_PASSWORD: ci_ephemeral
+          POSTGRES_DB: metergate_day11_test_ci
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U metergate -d metergate_day11_test_ci"
+          --health-interval 5s --health-timeout 3s --health-retries 12
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 12
+    env:
+      MG_DATABASE_URL: postgresql+asyncpg://metergate:ci_ephemeral@localhost:5432/metergate_day11_test_ci
+      MG_TEST_DATABASE_URL: postgresql+asyncpg://metergate:ci_ephemeral@localhost:5432/metergate_day11_test_ci
+      MG_REDIS_URL: redis://localhost:6379/0
+      MG_ENVIRONMENT: test
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked
+      - run: uv run ruff check app migrations scripts tests
+      - run: >-
+          uv run mypy --follow-imports=silent --check-untyped-defs
+          app/modules/billing/calculator.py app/integrations/payments/base.py
+          app/modules/metering/schemas.py
+      - run: uv run alembic upgrade head
+      - run: uv run alembic check
+      - name: Run repository suite
+        run: |
+          set -o pipefail
+          env -u MG_DATABASE_URL -u MG_REDIS_URL uv run pytest --junitxml=ci-results.xml | tee ci-pytest.log
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: failed-checks
+          path: |
+            ci-results.xml
+            ci-pytest.log
+          if-no-files-found: ignore
