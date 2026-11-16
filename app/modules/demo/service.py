@@ -10,7 +10,7 @@ from app.modules.catalog.models import Plan
 from app.modules.demo.schemas import DataQuery, DataQueryItem, DataQueryResult
 from app.modules.metering.repository import get_usage_event
 from app.modules.metering.schemas import UsageIn
-from app.modules.metering.service import consume_usage
+from app.modules.metering.service import consume_usage, usage_transaction
 from app.modules.subscriptions.periods import utc_now
 
 
@@ -22,7 +22,7 @@ async def query_data(
     usage_command = UsageIn(
         event_id=event_id, metric="data_query", quantity=1, occurred_at=utc_now()
     )
-    async with session.begin():
+    async with usage_transaction(session):
         usage = await consume_usage(session, context, usage_command, payload_hash=digest)
         event = await get_usage_event(session, context.tenant_id, event_id)
         if event is None:

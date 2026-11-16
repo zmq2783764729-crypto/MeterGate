@@ -1,4 +1,7 @@
 # 用途：在同一事务内扣减额度并保存用量事件，按原结果快照处理重试。
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -7,8 +10,8 @@ from app.modules.api_keys.context import ApiKeyContext
 from app.modules.metering import repository
 from app.modules.metering.models import QuotaBucket, UsageEvent
 from app.modules.metering.schemas import UsageIn, UsageResult, canonical_payload_hash
+from app.modules.subscriptions.period_service import resolve_open_period
 from app.modules.subscriptions.periods import utc_now
-from app.modules.subscriptions.service import require_consumable_period
 
 
 def _replay(event: UsageEvent, payload_hash: str) -> UsageResult:
@@ -21,8 +24,26 @@ def _replay(event: UsageEvent, payload_hash: str) -> UsageResult:
 async def ingest_usage(
     session: AsyncSession, context: ApiKeyContext, command: UsageIn
 ) -> UsageResult:
-    async with session.begin():
+    async with usage_transaction(session):
         return await consume_usage(session, context, command)
+
+
+class UsagePeriodUnavailable(DomainError):
+    def __init__(self) -> None:
+        super().__init__("SUBSCRIPTION_NOT_CONSUMABLE", "订阅已取消或不在可消费周期内", 409)
+
+
+@asynccontextmanager
+async def usage_transaction(session: AsyncSession) -> AsyncIterator[None]:
+    unavailable = None
+    async with session.begin():
+        try:
+            yield
+        except UsagePeriodUnavailable as exc:
+            # 到期取消可能已关闭账期。先提交关闭和 Outbox，再拒绝记入新用量。
+            unavailable = exc
+    if unavailable is not None:
+        raise unavailable
 
 
 async def consume_usage(
@@ -41,21 +62,13 @@ async def consume_usage(
     if event is not None:
         return _replay(event, payload_hash)
 
-    try:
-        period = await require_consumable_period(session, context, at=received_at)
-    except DomainError as exc:
-        if exc.code != "SUBSCRIPTION_NOT_CONSUMABLE":
-            raise
-        # 等锁期间可能已有同编号事件提交，同时账期进入不可消费状态。
-        event = await repository.get_usage_event(session, tenant_id, command.event_id)
-        if event is not None:
-            return _replay(event, payload_hash)
-        raise
-
-    # 拿到订阅锁后重新读取，避免并发重试进入扣量流程。
+    period = await resolve_open_period(session, tenant_id, received_at)
+    # 等锁期间可能已有同编号事件提交，即使账期已关闭也可以重放。
     event = await repository.get_usage_event(session, tenant_id, command.event_id)
     if event is not None:
         return _replay(event, payload_hash)
+    if period is None:
+        raise UsagePeriodUnavailable()
 
     try:
         async with session.begin_nested():
