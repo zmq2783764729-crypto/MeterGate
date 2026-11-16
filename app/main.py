@@ -57,6 +57,7 @@ from app.modules.metering.schemas import (
     UsageSummary,
 )
 from app.modules.payments.service import CheckoutResult, create_checkout, payment_provider
+from app.modules.payments.webhook_service import WebhookResult, process_webhook
 from app.modules.subscriptions.router import activate as subscription_activate
 from app.modules.subscriptions.router import cancel as subscription_cancel
 from app.modules.subscriptions.router import read as subscription_read
@@ -512,6 +513,23 @@ async def checkout_invoice(
 ) -> CheckoutResult:
     return await create_checkout(
         session, context, invoice_id, payment_provider(request.app.state.settings)
+    )
+
+
+@app.post("/v1/webhooks/payments/mock", tags=["模拟支付"], summary="处理已签名的模拟付款通知")
+async def mock_payment_webhook(
+    request: Request,
+    session: TenantSessionDependency,
+    timestamp: Annotated[str, Header(alias="X-Mock-Timestamp")] = "",
+    signature: Annotated[str, Header(alias="X-Mock-Signature")] = "",
+) -> WebhookResult:
+    body = bytearray()
+    async for chunk in request.stream():
+        if len(body) + len(chunk) > 16384:
+            raise DomainError("PAYMENT_BODY_TOO_LARGE", "付款通知超出大小限制", 413)
+        body.extend(chunk)
+    return await process_webhook(
+        session, payment_provider(request.app.state.settings), bytes(body), timestamp, signature
     )
 
 
