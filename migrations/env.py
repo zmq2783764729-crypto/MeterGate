@@ -16,6 +16,7 @@ from app.modules.catalog import models as catalog_models  # noqa: F401
 from app.modules.metering import models as metering_models  # noqa: F401
 from app.modules.subscriptions import models as subscription_models  # noqa: F401
 from app.modules.tenants import models as tenant_models  # noqa: F401
+from app.workers import outbox_models  # noqa: F401
 
 config = context.config
 if config.config_file_name is not None:

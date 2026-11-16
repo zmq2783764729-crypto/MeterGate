@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import DomainError
 from app.modules.api_keys.context import ApiKeyContext
 from app.modules.audit.service import record_audit
+from app.modules.billing.events import queue_period_closed
 from app.modules.catalog.models import PlanVersion
 from app.modules.metering.repository import add_quota_bucket
 from app.modules.subscriptions import repository
@@ -136,6 +137,7 @@ async def _finalize_due_cancellation(
         period = await repository.lock_open_period(session, context, subscription.id)
         if period is not None:
             period.status = "closed"
+            await queue_period_closed(session, period)
             record_audit(
                 session,
                 context.tenant_id,
