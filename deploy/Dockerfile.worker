@@ -1,0 +1,8 @@
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+WORKDIR /srv/metergate
+COPY pyproject.toml uv.lock README.md ./
+RUN uv sync --locked --no-dev
+COPY app ./app
+COPY migrations ./migrations
+COPY alembic.ini ./
+ENV PATH="/srv/metergate/.venv/bin:$PATH"

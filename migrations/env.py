@@ -12,6 +12,7 @@ from app.db.base import Base
 from app.modules.api_keys import models as api_key_models  # noqa: F401
 from app.modules.audit import models as audit_models  # noqa: F401
 from app.modules.auth import models as auth_models  # noqa: F401
+from app.modules.billing import models as billing_models  # noqa: F401
 from app.modules.catalog import models as catalog_models  # noqa: F401
 from app.modules.metering import models as metering_models  # noqa: F401
 from app.modules.subscriptions import models as subscription_models  # noqa: F401

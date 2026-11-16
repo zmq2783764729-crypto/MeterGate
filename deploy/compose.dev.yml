@@ -33,6 +33,39 @@ services:
       retries: 12
       start_period: 5s
 
+  migrate:
+    profiles: ["workers"]
+    build: &worker_build
+      context: ..
+      dockerfile: deploy/Dockerfile.worker
+    environment: &worker_env
+      MG_DATABASE_URL: postgresql+asyncpg://metergate:metergate_dev_only@postgres:5432/metergate
+      MG_REDIS_URL: redis://redis:6379/0
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  outbox:
+    profiles: ["workers"]
+    build: *worker_build
+    environment: *worker_env
+    command: ["python", "-m", "app.workers.dispatch"]
+    restart: unless-stopped
+    depends_on: &worker_dependencies
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+  worker:
+    profiles: ["workers"]
+    build: *worker_build
+    environment: *worker_env
+    command: ["dramatiq", "app.workers.tasks:broker", "--processes", "1", "--threads", "4"]
+    restart: unless-stopped
+    depends_on: *worker_dependencies
+
 volumes:
   postgres_data:
   redis_data:
