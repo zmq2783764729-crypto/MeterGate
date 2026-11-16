@@ -28,7 +28,7 @@ SEED_EVENTS = text("""
              CASE WHEN date_part('microseconds', ts)::bigint % 1000000 = 0
                 THEN to_char(ts AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')
                 ELSE to_char(ts AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
-             END || '","quantity":1}', 'UTF8')), 'hex'),
+             END || '","quantity":' || '1}', 'UTF8')), 'hex'),
            jsonb_build_object('event_id', id, 'period_id', CAST(:period_id AS uuid),
                               'metric', 'data_query', 'quantity', 1,
                               'used', CAST(:used AS bigint) + n,

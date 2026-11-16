@@ -53,7 +53,7 @@ class JsonFormatter(logging.Formatter):
 def configure_logging(level: str, *, stream: TextIO | None = None) -> None:
     handler = logging.StreamHandler(stream)
     handler.setFormatter(JsonFormatter())
-    for name in ("metergate", "uvicorn.error"):
+    for name in ("metergate", "uvicorn.error", "dramatiq"):
         logger = logging.getLogger(name)
         old_handlers = logger.handlers[:]
         logger.handlers = [handler]

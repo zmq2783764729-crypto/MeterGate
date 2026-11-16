@@ -9,6 +9,7 @@ from app.core.errors import DomainError
 from app.modules.billing.calculator import calculate_invoice
 from app.modules.billing.models import Invoice, InvoiceItem
 from app.modules.billing.schemas import InvoiceDetail, InvoiceLine, InvoicePage, InvoiceSummary
+from app.modules.catalog import models as catalog_models  # noqa: F401
 from app.modules.metering.models import UsageEvent
 from app.modules.subscriptions.models import BillingPeriod, PeriodTerms
 
