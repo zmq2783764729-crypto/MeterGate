@@ -14,6 +14,7 @@ from app.modules.api_keys.schemas import (
     ApiKeyPublic,
 )
 from app.modules.api_keys.security import generate_api_key
+from app.modules.audit.service import record_audit
 from app.modules.tenants.authorization import lock_and_authorize_admin
 from app.modules.tenants.context import TenantContext
 
@@ -65,4 +66,7 @@ async def revoke_api_key(session: AsyncSession, context: TenantContext, key_id: 
             raise DomainError("API_KEY_NOT_FOUND", "该企业中不存在此API Key", 404)
         if key.revoked_at is None:
             key.revoked_at = datetime.now(UTC)
+            record_audit(
+                session, context.tenant_id, "api_key.revoked", key.id, actor_user_id=context.user_id
+            )
             await session.flush()

@@ -5,6 +5,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import DomainError
+from app.modules.audit.service import record_audit
 from app.modules.auth import repository as user_repository
 from app.modules.tenants import repository
 from app.modules.tenants.authorization import lock_and_authorize_admin
@@ -98,6 +99,14 @@ async def add_tenant_member(
             member = await repository.add_membership(
                 session, tenant_id=context.tenant_id, user_id=user.id, role=data.role
             )
+            record_audit(
+                session,
+                context.tenant_id,
+                "member.added",
+                user.id,
+                actor_user_id=context.user_id,
+                details={"role": data.role.value},
+            )
             result = member_public(member, user.email)
         return result
     except IntegrityError as exc:
@@ -126,7 +135,16 @@ async def change_member_role(
         target = await _target_member(session, context, user_id)
         if target.role == MemberRole.ADMIN and data.role != MemberRole.ADMIN:
             await _protect_last_admin(session, context, target)
-        target.role = data.role.value
+        if target.role != data.role.value:
+            record_audit(
+                session,
+                context.tenant_id,
+                "member.role_changed",
+                user_id,
+                actor_user_id=context.user_id,
+                details={"previous_role": target.role, "role": data.role.value},
+            )
+            target.role = data.role.value
         await session.flush()
         user = await user_repository.get_user_by_id(session, user_id)
         result = member_public(target, user.email)
@@ -141,4 +159,12 @@ async def remove_tenant_member(
         target = await _target_member(session, context, user_id)
         await _protect_last_admin(session, context, target)
         await session.delete(target)
+        record_audit(
+            session,
+            context.tenant_id,
+            "member.removed",
+            user_id,
+            actor_user_id=context.user_id,
+            details={"role": target.role},
+        )
         await session.flush()

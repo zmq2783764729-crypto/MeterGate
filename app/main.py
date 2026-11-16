@@ -31,6 +31,7 @@ from app.modules.api_keys.schemas import (
     ApiKeyIdentity,
     ApiKeyPage,
 )
+from app.modules.audit.service import AuditPage, list_audit
 from app.modules.auth.models import User
 from app.modules.auth.router import SessionDependency, SettingsDependency
 from app.modules.auth.router import login as auth_login
@@ -464,6 +465,16 @@ async def list_usage_events(
     query: Annotated[UsageListQuery, Query()],
 ) -> UsageEventPage:
     return await usage_events(session, context.tenant_id, query)
+
+
+@app.get("/v1/tenants/{tenant_id}/audit", tags=["管理审计"], summary="分页查询企业审计记录")
+async def list_tenant_audit(
+    context: AdminTenantDependency,
+    session: TenantSessionDependency,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    cursor: UUID | None = None,
+) -> AuditPage:
+    return await list_audit(session, context, limit, cursor)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:

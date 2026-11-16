@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import DomainError
 from app.modules.api_keys.context import ApiKeyContext
+from app.modules.audit.service import record_audit
 from app.modules.catalog.models import PlanVersion
 from app.modules.metering.repository import add_quota_bucket
 from app.modules.subscriptions import repository
@@ -135,6 +136,14 @@ async def _finalize_due_cancellation(
         period = await repository.lock_open_period(session, context, subscription.id)
         if period is not None:
             period.status = "closed"
+            record_audit(
+                session,
+                context.tenant_id,
+                "period.closed",
+                period.id,
+                actor_user_id=context.user_id,
+                details={"reason": "cancellation"},
+            )
         subscription.status = "canceled"
         subscription.canceled_at = subscription.cancel_effective_at
         subscription.pending_plan_version_id = None
@@ -159,6 +168,14 @@ async def schedule_plan_change(
             raise DomainError("PLAN_VERSION_NOT_FOUND", "套餐价格版本不存在", 404)
         subscription.pending_plan_version_id = data.plan_version_id
         subscription.pending_effective_at = period.period_end
+        record_audit(
+            session,
+            context.tenant_id,
+            "subscription.plan_change_scheduled",
+            subscription.id,
+            actor_user_id=context.user_id,
+            details={"plan_version_id": str(data.plan_version_id)},
+        )
         await session.flush()
         result = await subscription_public(session, context, subscription)
     return result
@@ -180,6 +197,13 @@ async def cancel_at_period_end(session: AsyncSession, context: TenantContext) ->
             subscription.cancel_effective_at = period.period_end
             subscription.pending_plan_version_id = None
             subscription.pending_effective_at = None
+            record_audit(
+                session,
+                context.tenant_id,
+                "subscription.cancellation_scheduled",
+                subscription.id,
+                actor_user_id=context.user_id,
+            )
             await session.flush()
         elif subscription.status not in {"active", "canceled"}:
             raise DomainError("INVALID_SUBSCRIPTION_STATE", "当前订阅状态不允许取消", 409)
