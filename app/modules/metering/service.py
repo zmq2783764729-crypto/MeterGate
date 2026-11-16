@@ -1,4 +1,5 @@
 # 用途：在同一事务内扣减额度并保存用量事件，按原结果快照处理重试。
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -6,12 +7,14 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import DomainError
+from app.middleware.request_context import get_request_id
 from app.modules.api_keys.context import ApiKeyContext
 from app.modules.metering import repository
 from app.modules.metering.models import QuotaBucket, UsageEvent
 from app.modules.metering.schemas import UsageIn, UsageResult, canonical_payload_hash
 from app.modules.subscriptions.period_service import resolve_open_period
 from app.modules.subscriptions.periods import utc_now
+from app.observability.metrics import usage_replays
 
 
 def _replay(event: UsageEvent, payload_hash: str) -> UsageResult:
@@ -25,7 +28,23 @@ async def ingest_usage(
     session: AsyncSession, context: ApiKeyContext, command: UsageIn
 ) -> UsageResult:
     async with usage_transaction(session):
-        return await consume_usage(session, context, command)
+        result = await consume_usage(session, context, command)
+    log_usage_result(result)
+    return result
+
+
+def log_usage_result(result: UsageResult) -> None:
+    if result.replayed:
+        usage_replays.inc()
+    logging.getLogger("metergate.usage").info(
+        "usage_recorded",
+        extra={
+            "event": "usage_recorded",
+            "request_id": get_request_id(),
+            "event_id": str(result.event_id),
+            "period_id": str(result.period_id),
+        },
+    )
 
 
 class UsagePeriodUnavailable(DomainError):

@@ -7,6 +7,7 @@ from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app.core.logging import log_request
+from app.observability.metrics import observe_request
 
 request_id_context: ContextVar[str | None] = ContextVar("request_id", default=None)
 
@@ -46,11 +47,13 @@ class RequestContextMiddleware:
             raise
         finally:
             try:
+                duration = perf_counter() - started_at
+                observe_request(scope, status_code, duration)
                 log_request(
                     scope,
                     request_id=request_id,
                     status_code=status_code,
-                    duration_ms=(perf_counter() - started_at) * 1000,
+                    duration_ms=duration * 1000,
                     error_type=error_type,
                 )
             finally:

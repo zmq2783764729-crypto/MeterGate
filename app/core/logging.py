@@ -11,6 +11,8 @@ EVENT_MESSAGES = {
     "request_failed": "请求处理失败",
     "server_event": "服务器事件",
     "application_event": "应用事件",
+    "usage_recorded": "用量事件已提交",
+    "invoice_generated": "账期出账已提交",
 }
 SAFE_FIELDS = (
     "request_id",
@@ -20,6 +22,8 @@ SAFE_FIELDS = (
     "duration_ms",
     "error_type",
     "code",
+    "event_id",
+    "period_id",
 )
 HTTP_METHODS = {"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "TRACE", "CONNECT"}
 

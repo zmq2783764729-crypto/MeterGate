@@ -88,6 +88,7 @@ from app.modules.tenants.schemas import (
     TenantPage,
     TenantPublic,
 )
+from app.observability.metrics import render_metrics
 
 
 @asynccontextmanager
@@ -531,6 +532,11 @@ async def mock_payment_webhook(
     return await process_webhook(
         session, payment_provider(request.app.state.settings), bytes(body), timestamp, signature
     )
+
+
+@app.get("/metrics", include_in_schema=False)
+async def metrics(request: Request) -> Response:
+    return await render_metrics(request)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:

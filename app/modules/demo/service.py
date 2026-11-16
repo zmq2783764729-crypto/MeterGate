@@ -10,7 +10,7 @@ from app.modules.catalog.models import Plan
 from app.modules.demo.schemas import DataQuery, DataQueryItem, DataQueryResult
 from app.modules.metering.repository import get_usage_event
 from app.modules.metering.schemas import UsageIn
-from app.modules.metering.service import consume_usage, usage_transaction
+from app.modules.metering.service import consume_usage, log_usage_result, usage_transaction
 from app.modules.subscriptions.periods import utc_now
 
 
@@ -41,4 +41,6 @@ async def query_data(
                 **event.result_snapshot,
                 "items": [item.model_dump() for item in items],
             }
-        return DataQueryResult(items=items, usage=usage)
+        result = DataQueryResult(items=items, usage=usage)
+    log_usage_result(result.usage)
+    return result

@@ -1,4 +1,5 @@
 # 用途：在独立同步事务内处理账期事件、保存结算输入并记录耗尽重试的失败。
+import logging
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -8,6 +9,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
+from app.core.logging import configure_logging
 from app.modules.billing.events import PERIOD_CLOSED
 from app.modules.billing.models import Invoice, SettlementInput
 from app.modules.billing.service import generate_invoice
@@ -24,6 +26,7 @@ engine = create_engine(
     worker_url, pool_pre_ping=True, hide_parameters=True, connect_args={"connect_timeout": 5}
 )
 WorkerSession = sessionmaker(engine)
+configure_logging(settings.log_level)
 
 
 @dramatiq.actor(broker=broker, queue_name="billing", max_retries=10, min_backoff=1000)
@@ -77,6 +80,11 @@ def process_domain_event(event_id: str) -> None:
             .values(period_id=period.id, event_id=event.id, total_quantity=int(total))
             .on_conflict_do_nothing(index_elements=[SettlementInput.period_id])
         )
-        generate_invoice(session, period.id)
+        invoice = generate_invoice(session, period.id)
+        period_id = str(invoice.period_id)
         event.failed_at = None
         event.last_error = None
+    logging.getLogger("metergate.billing").info(
+        "invoice_generated",
+        extra={"event": "invoice_generated", "event_id": event_id, "period_id": period_id},
+    )

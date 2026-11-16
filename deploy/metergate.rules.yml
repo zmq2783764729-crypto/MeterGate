@@ -1,0 +1,15 @@
+groups:
+  - name: metergate
+    rules:
+      - alert: MeterGateOutboxBacklog
+        expr: metergate_outbox_oldest_due_seconds > 120
+        for: 2m
+      - alert: MeterGateFailedBillingJobs
+        expr: metergate_outbox_failed > 0
+        for: 2m
+      - alert: MeterGateBillingWorkerBacklog
+        expr: metergate_billing_oldest_pending_seconds > 120
+        for: 2m
+      - alert: MeterGateHttpErrors
+        expr: sum(rate(metergate_http_requests_total{status=~"5.."}[5m])) > 1
+        for: 5m
